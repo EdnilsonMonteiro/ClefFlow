@@ -1,0 +1,14 @@
+# Prompts do workflow 'background_removal'. Use {request} onde o pedido do usuário entra.
+
+default: remover
+presets:
+- id: remover
+  name: Remover o fundo (PNG)
+  when: Tirar o fundo da imagem e deixar só o sujeito, com fundo transparente.
+  text: Remove the background, and output a PNG image
+  rewrite: false
+- id: fundo_branco
+  name: Fundo branco liso
+  when: O usuário quer o sujeito sobre um fundo branco, não transparente.
+  text: Remove the background and place the subject on a plain pure white background. Keep the subject exactly as it is.
+  rewrite: false

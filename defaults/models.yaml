@@ -1,0 +1,109 @@
+# Arquivos que os workflows do ClefFlow usam e que ficam no ComfyUI (pastas models/<folder>/).
+# O assistente de primeiros passos (aba Ajustes) lê esta lista, mostra o que falta e só baixa o que você marcar.
+#
+# Cada autor tem a sua licença: várias são de uso não comercial. Confira a página antes de usar.
+# Para acrescentar os seus, crie custom/models.yaml com o mesmo formato (mesmo id = o seu vale mais).
+#
+#   id        nome curto (letras minúsculas, números e _)
+#   file      nome do arquivo como o workflow o chama
+#   folder    loras | diffusion_models | text_encoders | vae   (subpasta de models/)
+#   url       endereço direto do arquivo (https)
+#   page      página do autor, para conferir licença e versão
+#   size_gb   tamanho aproximado (opcional; o assistente confirma o tamanho real antes de baixar)
+
+files:
+  # ------------------------------------------------------------- LoRAs
+  - id: viggle_turbo
+    group: lora
+    title: Viggle Turbo (6 passos)
+    file: Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors
+    folder: loras
+    why: Faz os workflows Turbo gerarem em 6 passos, sem CFG.
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo
+    url: https://huggingface.co/Viggle/Qwen-Image-2.1-viggle-turbo/resolve/main/Qwen-Image-2.1-viggle-turbo-v0.2.1-6step-lora-r128.safetensors
+    size_gb: 0.7
+  - id: natural_exposure
+    group: lora
+    title: Natural Exposure
+    file: Qwen-Image-2.1-Natural-Exposure-LoRA-4000.safetensors
+    folder: loras
+    why: Luz e exposição mais naturais na edição. Está em quase todos os workflows.
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/prithivMLmods/Qwen-Image-2.1-Natural-Exposure-LoRA
+    url: https://huggingface.co/prithivMLmods/Qwen-Image-2.1-Natural-Exposure-LoRA/resolve/main/Qwen-Image-2.1-Natural-Exposure-LoRA-4000.safetensors
+  - id: consistency_2000
+    group: lora
+    title: Consistency (2000)
+    file: qwen-image-2.1-consistency-2000.safetensors
+    folder: loras
+    why: Mantém o que você não pediu para mudar (edição, trocar corpo, substituir área).
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/ausboss/Qwen-Image-2.1-Consistency-LoRA
+    url: https://huggingface.co/ausboss/Qwen-Image-2.1-Consistency-LoRA/resolve/main/qwen-image-2.1-consistency-2000.safetensors
+  - id: consistency
+    group: lora
+    title: Consistency (final)
+    file: qwen-image-2.1-consistency.safetensors
+    folder: loras
+    why: Mesma LoRA de consistência, versão final. Usada nos workflows de trocar cabeça e vários corpos.
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/ausboss/Qwen-Image-2.1-Consistency-LoRA
+    url: https://huggingface.co/ausboss/Qwen-Image-2.1-Consistency-LoRA/resolve/main/qwen-image-2.1-consistency.safetensors
+  - id: flymy_realism
+    group: lora
+    title: FlyMy Realism
+    file: flymy_realism.safetensors
+    folder: loras
+    why: Mais realismo de pele e textura (edição, trocar cabeça, mover e transferir objeto).
+    license: Apache-2.0
+    page: https://huggingface.co/flymy-ai/qwen-image-realism-lora
+    url: https://huggingface.co/flymy-ai/qwen-image-realism-lora/resolve/main/flymy_realism.safetensors
+  - id: bfs_head
+    group: lora
+    title: BFS troca de cabeça
+    file: bfs_head_v1.1_qwen_2.1.safetensors
+    folder: loras
+    why: Trocar a cabeça ou o rosto de uma pessoa.
+    license: MIT
+    page: https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap
+    url: https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap/resolve/main/bfs_head_v1.1_qwen_2.1.safetensors
+    size_gb: 0.3
+  - id: bfs_body
+    group: lora
+    title: BFS troca de corpo
+    file: bfs_body_swap_v1.0_qwen_2.1.safetensors
+    folder: loras
+    why: Trocar o corpo de uma pessoa, trocar vários corpos e transferir objeto (Turbo).
+    license: MIT
+    page: https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap
+    url: https://huggingface.co/Alissonerdx/BFS-Best-Face-Swap/resolve/main/bfs_body_swap_v1.0_qwen_2.1.safetensors
+
+  # ------------------------------------------------- modelos base (grandes)
+  - id: qwen_unet
+    group: model
+    title: Qwen-Image 2.1 (modelo principal, int8)
+    file: qwen_image_2.1_int8_convrot.safetensors
+    folder: diffusion_models
+    why: O modelo que todos os workflows usam.
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/Comfy-Org/Qwen-Image-2.1
+    url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/diffusion_models/qwen_image_2.1_int8_convrot.safetensors
+  - id: qwen_vae
+    group: model
+    title: Qwen-Image 2.1 VAE
+    file: qwen_image_2.1_vae_bf16.safetensors
+    folder: vae
+    why: Converte o resultado em imagem.
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/Comfy-Org/Qwen-Image-2.1
+    url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/vae/qwen_image_2.1_vae_bf16.safetensors
+  - id: qwen_text_encoder
+    group: model
+    title: Codificador de texto Qwen3-VL 8B (fp8)
+    file: qwen3vl_8b_fp8_heretic.safetensors
+    folder: text_encoders
+    why: Lê o prompt e as imagens. Todos os workflows usam.
+    license: Qwen Research (uso não comercial)
+    page: https://huggingface.co/Comfy-Org/Qwen-Image-2.1
+    url: https://huggingface.co/Comfy-Org/Qwen-Image-2.1/resolve/main/text_encoders/qwen3vl_8b_fp8_heretic.safetensors

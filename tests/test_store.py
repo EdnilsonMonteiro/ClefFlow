@@ -1,0 +1,150 @@
+import json
+import shutil
+
+import pytest
+import yaml
+from fastapi.testclient import TestClient
+
+from clefflow import importer
+from clefflow.app import create_app
+from clefflow.store import Store, StoreError
+
+
+def test_defaults_only_install_works_and_custom_starts_empty(project):
+    s = Store(project)
+    assert len(s.manifests()) == 15 and all(m["source"] == "default" for m in s.manifests().values())
+    assert s.settings()["comfyui"]["url"].startswith("http://")
+    assert not (project / "custom").exists() or not any((project / "custom").rglob("*.yaml"))
+
+
+def test_custom_overrides_default_by_id_and_wins_for_files(project):
+    s = Store(project)
+    s.ensure_custom_dirs()
+    m = yaml.safe_load((project / "defaults" / "registry" / "edit_turbo.yaml").read_text(encoding="utf-8"))
+    m["title"] = "Meu Turbo"
+    m["file"] = "meu.json"
+    (project / "custom" / "registry" / "edit_turbo.yaml").write_text(yaml.dump(m), encoding="utf-8")
+    (project / "custom" / "workflows" / "meu.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
+    mf = s.manifest("edit_turbo")
+    assert mf["title"] == "Meu Turbo" and mf["source"] == "custom"
+    assert s.workflow_path("edit_turbo").name == "meu.json"
+    assert s.workflow_path("edit_quality").parent.name == "workflows" and s.workflow_path("edit_quality").parent.parent.name == "defaults"
+
+
+def test_workflow_file_cannot_escape_the_workflow_folders(project):
+    s = Store(project)
+    s.ensure_custom_dirs()
+    (project / "secret.json").write_text("{}", encoding="utf-8")
+    m = yaml.safe_load((project / "defaults" / "registry" / "edit_turbo.yaml").read_text(encoding="utf-8"))
+    m.update(id="fuga", file="../../secret.json")
+    (project / "custom" / "registry" / "fuga.yaml").write_text(yaml.dump(m), encoding="utf-8")
+    with pytest.raises(StoreError):
+        s.workflow_path("fuga")
+
+
+def test_saving_identical_to_default_leaves_no_custom_file(project):
+    s = Store(project)
+    lib = s.prompts("edit_quality")
+    s.save_prompts("edit_quality", lib)
+    assert not s.prompts_customized("edit_quality")
+    cfg = s.clef_config()
+    s.save_clef_config(cfg)
+    assert not (project / "custom" / "clef_prompt.yaml").exists()
+    cfg["workflows"]["edit_quality"]["description"] = "outra"
+    s.save_clef_config(cfg)
+    mine = yaml.safe_load((project / "custom" / "clef_prompt.yaml").read_text(encoding="utf-8"))
+    assert list(mine["workflows"]) == ["edit_quality"] and "instructions" not in mine
+
+
+def test_new_defaults_reach_users_who_only_edited_other_workflows(project):
+    s = Store(project)
+    cfg = s.clef_config()
+    cfg["workflows"]["edit_quality"]["description"] = "minha"
+    s.save_clef_config(cfg)
+    base = yaml.safe_load((project / "defaults" / "clef_prompt.yaml").read_text(encoding="utf-8"))
+    base["workflows"]["edit_turbo"]["description"] = "descrição nova do repositório"
+    (project / "defaults" / "clef_prompt.yaml").write_text(yaml.dump(base, allow_unicode=True), encoding="utf-8")
+    now = s.clef_config()["workflows"]
+    assert now["edit_turbo"]["description"] == "descrição nova do repositório" and now["edit_quality"]["description"] == "minha"
+
+
+def test_recipe_with_disabled_workflow_is_hidden(project):
+    s = Store(project)
+    assert [r["id"] for r in s.enabled_recipes()] == ["trocar_pessoa_e_fundo"]
+    cfg = s.clef_config()
+    cfg["workflows"]["transfer_object_turbo"]["enabled"] = False
+    s.save_clef_config(cfg)
+    assert s.enabled_recipes() == []
+
+
+# -------------------------------------------------------------------- importer
+@pytest.fixture()
+def api(project):
+    app = create_app(project)
+    with TestClient(app, base_url="http://127.0.0.1:7860") as c:
+        yield c
+
+
+def _copy_default_to_custom(project, name, dest=None):
+    dst = project / "custom" / "workflows" / (dest or name)
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copy(project / "defaults" / "workflows" / name, dst)
+
+
+def test_importer_finds_unregistered_files_and_builds_a_working_draft(api, project):
+    _copy_default_to_custom(project, "Qwen2.1 Image Edit Quality.json", "Meu Edit.json")
+    _copy_default_to_custom(project, "Qwen2.1 Image Edit Quality.json", "NSFW/Outro.json")
+    listing = api.get("/api/importable").json()
+    assert {x["file"] for x in listing} == {"Meu Edit.json", "NSFW/Outro.json"}
+    assert [x["nsfw"] for x in listing if x["file"].startswith("NSFW")] == [True]
+    d = api.get("/api/importable/draft", params={"file": "Meu Edit.json"}).json()
+    assert d["id"] == "meu_edit" and [i["node"] for i in d["images"]][:2] == [26, 27]
+    assert d["prompts"][0]["node"] == 6 and [o["node"] for o in d["outputs"]] == [25]
+    r = api.post("/api/import", json={"file": "Meu Edit.json", "id": "meu_edit", "title": "Meu edit",
+                                      "images": [{"node": 26, "label": "Foto"}], "prompt": {"node": 6, "widget": "value"},
+                                      "outputs": [25]})
+    assert r.status_code == 200, r.text
+    view = r.json()
+    assert view["source"] == "custom" and view["id"] == "meu_edit" and view["presets"][0]["text"] == "{request}"
+    assert "Meu Edit.json" not in {x["file"] for x in api.get("/api/importable").json()}
+    # entra na validação do doctor e some com o "remover"
+    assert api.delete("/api/workflows/meu_edit").json() == {"result": "removed"}
+    assert not any(w["id"] == "meu_edit" for w in api.get("/api/workflows").json())
+    assert (project / "custom" / "workflows" / "Meu Edit.json").exists()          # o arquivo é seu: não apagamos
+
+
+def test_import_rejects_bad_input(api, project):
+    _copy_default_to_custom(project, "Qwen2.1 Image Edit Quality.json", "x.json")
+    ok = {"file": "x.json", "id": "x1", "outputs": [25]}
+    assert api.post("/api/import", json={**ok, "id": "Inválido"}).status_code == 422
+    assert api.post("/api/import", json={**ok, "id": "edit_quality"}).status_code == 422       # já existe
+    assert api.post("/api/import", json={**ok, "file": "../defaults/clef_prompt.yaml"}).status_code == 422
+    assert api.post("/api/import", json={**ok, "outputs": []}).status_code == 422
+    assert api.get("/api/importable/draft", params={"file": "nao_existe.json"}).status_code == 422
+
+
+def test_importer_explains_api_format_files(project):
+    with pytest.raises(StoreError, match="editor"):
+        importer.analyze({"1": {"class_type": "KSampler", "inputs": {}}})
+
+
+def test_subgraph_workflow_draft_points_at_the_subgraph_node(project):
+    wf = json.loads((project / "defaults" / "workflows" / "image_qwen_image_2_1_background_removal.json").read_text(encoding="utf-8"))
+    d = importer.analyze(wf)
+    assert [i["node"] for i in d["images"]] == [470] and d["outputs"][0]["node"] == 461
+    assert d["prompts"][0]["node"] == 459 and d["prompts"][0]["widget"] == "prompt"
+
+
+def test_other_sites_and_odd_hosts_are_refused(api):
+    assert api.get("/api/status").status_code == 200
+    r = api.post("/api/conversations", headers={"Origin": "https://evil.example"})
+    assert r.status_code == 403
+    r = api.get("/api/workflows", headers={"Host": "evil.example"})
+    assert r.status_code == 403
+    ok = api.post("/api/conversations", headers={"Origin": "http://127.0.0.1:7860"})
+    assert ok.status_code == 200
+
+
+def test_files_endpoint_rejects_wildcards_and_traversal(api):
+    for bad in ("*", "..%2f..%2fsecret", "a*", "%5Bab%5D"):
+        assert api.get(f"/files/{bad}").status_code == 404

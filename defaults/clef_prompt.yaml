@@ -1,0 +1,98 @@
+# Prompt do Clef: o que cada workflow faz, quais prompts ele pode usar
+# e os casos de uso (sequências de workflows). Editável aqui ou na interface.
+
+instructions: Você encaminha pedidos de edição de imagem para workflows do ComfyUI (Qwen-Image 2.1). Escolha o workflow
+  mais específico para o pedido. Prefira as versões Turbo, a não ser que o usuário peça máxima qualidade, detalhe
+  ou diga que não tem pressa; nesse caso use Quality. A imagem 1 anexada costuma ser a cena base e a imagem 2 a
+  referência (pessoa, rosto, objeto), a menos que o usuário diga o contrário no texto. Se não houver imagem anexada
+  e o usuário quiser criar algo, use a geração do zero. Para mover ou trocar objetos de lugar dentro de UMA imagem (caixas vermelha
+  e verde), use object_move ou object_move_turbo. O prompt 'mover' leva um objeto para um destino vazio e o 'trocar'
+  faz dois objetos trocarem de lugar entre si. Esses dois fluxos exigem DUAS caixas (vermelha
+  e verde) e só mexem em objetos que já existem na imagem. Quando o pedido é acrescentar, colocar ou inserir um objeto NOVO
+  que não existe na imagem, com UM quadrado vermelho só no lugar onde ele deve aparecer, use replace_redbox com o prompt
+  'adicionar'; para trocar o que já está dentro do quadrado por outra coisa, replace_redbox com 'substituir'. Em resumo,
+  um objeto que já existe e vai para outro lugar é 'mover'; dois objetos que existem e trocam entre si é 'trocar';
+  um objeto que não existe e passa a existir é 'adicionar'. Só peça uma segunda etapa quando o pedido realmente exigir
+  dois workflows em sequência.
+workflows:
+  edit_turbo:
+    enabled: true
+    description: 'Edição geral rápida (6 passos) de uma imagem a partir de uma instrução em texto: trocar cor, roupa,
+      objeto, luz ou estilo. Aceita até 2 imagens de referência, que são opcionais.'
+  edit_quality:
+    enabled: true
+    description: Edição geral em alta qualidade (25 passos). Aceita até 2 imagens de referência (estilo, roupa, cor,
+      assunto). Use quando o usuário pedir máxima qualidade ou quando houver referência.
+  background_removal:
+    enabled: true
+    description: Remove o FUNDO de uma imagem e deixa só o sujeito (PNG com transparência, ou fundo branco se o usuário
+      pedir). Não muda o sujeito. Use para "tirar o fundo", "recortar", "isolar".
+  t2i:
+    enabled: true
+    description: Gera uma imagem NOVA a partir de texto, sem nenhuma imagem de entrada, em alta qualidade (25 passos).
+      Use quando o usuário pedir máxima qualidade ou não tiver pressa; sem pedido de qualidade prefira t2i_turbo.
+  t2i_turbo:
+    enabled: true
+    description: Gera uma imagem NOVA a partir de texto, sem nenhuma imagem de entrada (6 passos). Use só quando
+      o usuário pedir para criar/desenhar algo e não anexou imagem.
+  bodyswap_turbo:
+    enabled: true
+    description: 'Troca a PESSOA inteira (corpo e roupa) da cena pela pessoa de uma referência, mantendo pose, luz
+      e fundo. Versão rápido (6 passos). Precisa de 2 imagens: cena e pessoa de referência. Uma 3ª imagem
+      opcional define o lugar onde a pessoa fica.'
+  bodyswap_quality:
+    enabled: true
+    description: 'Troca a PESSOA inteira (corpo e roupa) da cena pela pessoa de uma referência, mantendo pose, luz
+      e fundo. Versão alta qualidade (25 passos). Precisa de 2 imagens: cena e pessoa de referência.'
+  headswap_turbo:
+    enabled: true
+    description: 'Troca só a CABEÇA/rosto da pessoa da cena pelo de uma referência (face swap), mantendo corpo,
+      luz e fundo. Versão rápido (6 passos). Precisa de 2 imagens: corpo/cena e rosto.'
+  headswap_quality:
+    enabled: true
+    description: 'Troca só a CABEÇA/rosto da pessoa da cena pelo de uma referência (face swap), mantendo corpo,
+      luz e fundo. Versão alta qualidade (25 passos). Precisa de 2 imagens: corpo/cena e rosto.'
+  multi_bodyswap:
+    enabled: true
+    description: Troca VÁRIOS corpos de uma cena (da esquerda para a direita) por referências diferentes, uma por
+      pessoa. Use quando a cena tem 2 ou 3 pessoas e o usuário enviou uma referência para cada.
+  object_move:
+    enabled: true
+    description: 'Move um objeto de lugar ou troca dois objetos de lugar entre si, dentro da MESMA imagem: o usuário
+      desenha uma caixa vermelha num objeto e uma verde no destino (vazio, para mover) ou no outro objeto (para
+      trocar). Só reposiciona objetos que já existem; não serve para adicionar um objeto novo (use replace_redbox).
+      Versão em alta qualidade.'
+  object_move_turbo:
+    enabled: true
+    description: 'Move um objeto de lugar ou troca dois objetos de lugar entre si, dentro da MESMA imagem: o usuário
+      desenha uma caixa vermelha num objeto e uma verde no destino (vazio, para mover) ou no outro objeto (para
+      trocar). Só reposiciona objetos que já existem; não serve para adicionar um objeto novo (use replace_redbox).
+      Versão rápida (6 passos).'
+  replace_redbox:
+    enabled: true
+    description: Trabalha com UM quadrado vermelho. Ou ADICIONA um objeto novo no lugar marcado (local vazio,
+      nada a tirar) ou SUBSTITUI/apaga o que já está dentro do quadrado por outra coisa. Não move nem troca objetos
+      de lugar e não usa caixa verde.
+  transfer_object:
+    enabled: true
+    description: Leva um objeto, pessoa ou parte do corpo de uma imagem (fonte, caixa vermelha) para outra (destino,
+      caixa verde). Serve também para trocar o fundo/cenário de uma pessoa. Versão em alta qualidade.
+  transfer_object_turbo:
+    enabled: true
+    description: Leva um objeto, pessoa ou parte do corpo de uma imagem (fonte, caixa vermelha) para outra (destino,
+      caixa verde). Serve também para trocar o fundo/cenário de uma pessoa. Versão rápida (6 passos).
+recipes:
+- id: trocar_pessoa_e_fundo
+  name: Trocar a pessoa e o fundo
+  enabled: true
+  description: 'Quando o usuário envia 3 imagens: a cena, a pessoa de referência e um novo fundo. Primeiro troca
+    o corpo da cena pela pessoa de referência; depois leva essa pessoa para o novo fundo.'
+  steps:
+  - workflow: bodyswap_turbo
+    inputs:
+      image_1: user:1
+      image_2: user:2
+  - workflow: transfer_object_turbo
+    inputs:
+      image_1: user:3
+      image_2: previous

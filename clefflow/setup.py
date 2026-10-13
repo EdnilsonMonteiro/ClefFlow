@@ -18,14 +18,15 @@ from urllib.parse import urljoin, urlparse
 import httpx
 import yaml
 
-from . import install_nodes
+from . import hf, install_nodes
 from .comfy import ComfyError
 from .store import Store, StoreError, atomic_write
 
-FOLDERS = ("loras", "diffusion_models", "text_encoders", "vae")
+FOLDERS = ("loras", "diffusion_models", "text_encoders", "vae", "clip_vision", "background_removal")
 COMBOS = {"loras": ("LoraLoader", "lora_name"), "diffusion_models": ("UNETLoader", "unet_name"),
-          "text_encoders": ("CLIPLoader", "clip_name"), "vae": ("VAELoader", "vae_name")}
-NAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ \-]{0,150}\.safetensors$")
+          "text_encoders": ("CLIPLoader", "clip_name"), "vae": ("VAELoader", "vae_name"),
+          "clip_vision": ("CLIPVisionLoader", "clip_name"), "background_removal": ("LoadBackgroundRemovalModel", "bg_removal_name")}
+NAME_RE = re.compile(r"^\w[\w._ \-]{0,150}\.safetensors$")      # \w aceita letras de qualquer idioma (há LoRAs com nome em chinês)
 ID_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 LOOPBACK = {"127.0.0.1", "localhost", "::1", "[::1]"}
 GB = 1024 ** 3
@@ -93,13 +94,17 @@ def used_by(store: Store) -> dict[str, list[str]]:
     """arquivo (nome-base) -> ids dos workflows que o citam."""
     res: dict[str, set[str]] = {}
     for wid in store.manifests():
-        try:
-            wf = store.workflow_json(wid)
-        except (StoreError, OSError, ValueError):
-            continue
-        for s in _strings(wf):
-            if s.lower().endswith(".safetensors") and len(s) < 200:
-                res.setdefault(base(s), set()).add(wid)
+        for mode, _m in store.variants(wid):
+            try:
+                wf = store.workflow_json(wid, mode)
+            except (StoreError, OSError, ValueError):
+                continue
+            for s in _strings(wf):
+                if s.lower().endswith(".safetensors") and len(s) < 200:
+                    res.setdefault(base(s), set()).add(wid)
+    for lid, lo in store.loras().items():            # LoRAs da biblioteca (escolhidas pelo Clef na hora)
+        if lo.get("file") and not lo.get("disabled"):
+            res.setdefault(base(lo["file"]), set()).add("lora:" + lid)
     return {k: sorted(v) for k, v in res.items()}
 
 
@@ -183,7 +188,7 @@ async def probe_one(client: httpx.AsyncClient, url: str) -> dict:
     """Confere se o endereço existe e qual o tamanho, sem baixar. Hugging Face responde 302 com
     x-linked-size / x-linked-etag (o sha256 do arquivo) na primeira resposta."""
     try:
-        r = await client.head(url, follow_redirects=False)
+        r = await client.head(url, follow_redirects=False, headers=hf.auth_headers(url))
         hops = 0
         while r.is_redirect and hops < 5 and "x-linked-size" not in r.headers:
             r = await client.head(urljoin(str(r.url), r.headers["location"]), follow_redirects=False)
@@ -191,7 +196,7 @@ async def probe_one(client: httpx.AsyncClient, url: str) -> dict:
         if r.status_code in (404, 410):
             return {"ok": False, "error": "arquivo não encontrado no endereço"}
         if r.status_code in (401, 403):
-            return {"ok": False, "error": "o servidor exige login ou aceite de licença"}
+            return {"ok": False, "error": hf.denied_message() if hf.is_hf(url) else "o servidor exige login ou aceite de licença"}
         if r.status_code >= 400:
             return {"ok": False, "error": f"o servidor respondeu {r.status_code}"}
         size = r.headers.get("x-linked-size") or r.headers.get("content-length")
@@ -264,7 +269,7 @@ class Downloader:
                 raise RuntimeError(f"pouco espaço em disco: precisa de {size / GB:.1f} GB em {dest_dir}")
             digest = hashlib.sha256()
             try:
-                async with c.stream("GET", e["url"], follow_redirects=True) as r:
+                async with c.stream("GET", e["url"], follow_redirects=True, headers=hf.auth_headers(e["url"])) as r:
                     r.raise_for_status()
                     job.total = int(r.headers.get("content-length") or size or 0)
                     with open(part, "wb") as f:
@@ -293,10 +298,13 @@ class SetupService:
         """used_by() relê todos os workflows; guarda o resultado enquanto os arquivos não mudarem."""
         sig = []
         for wid in self.store.manifests():
-            try:
-                sig.append((wid, self.store.workflow_path(wid).stat().st_mtime_ns))
-            except (StoreError, OSError):
-                sig.append((wid, 0))
+            for mode, _m in self.store.variants(wid):
+                try:
+                    sig.append((wid, mode, self.store.workflow_path(wid, mode).stat().st_mtime_ns))
+                except (StoreError, OSError):
+                    sig.append((wid, mode, 0))
+        for lid, lo in self.store.loras().items():
+            sig.append(("lora:" + lid, lo.get("file"), lo.get("source")))
         key = tuple(sig)
         if not self._used or self._used[0] != key:
             self._used = (key, used_by(self.store))
@@ -331,9 +339,24 @@ class SetupService:
         restart = any(i["files"] == "ok" and i["loaded"] is False for i in items)
         return {"items": items, "missing": len(need), "restart_needed": restart}
 
+    def _external(self, env: dict) -> list[dict]:
+        """Nodes de outros autores que os workflows pedem (campo requires_nodes do registro).
+        O ClefFlow não os instala: mostra o que falta e onde pegar (ComfyUI Manager ou o GitHub do autor)."""
+        oi, found = env["oi"], {}
+        for wid, m in self.store.manifests().items():
+            for r in m.get("requires_nodes") or []:
+                cls = str(r.get("class") or "")
+                if not cls:
+                    continue
+                e = found.setdefault(cls, {"class": cls, "pack": str(r.get("pack") or cls), "url": str(r.get("url") or ""),
+                                           "used_by": [], "loaded": (cls in oi) if oi is not None else None})
+                e["used_by"].append(m.get("title", wid))
+        return list(found.values())
+
     def _files(self, env: dict) -> list[dict]:
         by = self._used_by()
         titles = {wid: m.get("title", wid) for wid, m in self.store.manifests().items()}
+        titles.update({"lora:" + lid: "LoRA " + (lo.get("title") or lid) for lid, lo in self.store.loras().items()})
         out = []
         for e in catalog(self.store):
             a, b = in_object_info(env["oi"], e["folder"], e["file"]), on_disk(env["root"], e["folder"], e["file"])
@@ -346,21 +369,21 @@ class SetupService:
 
     async def overview(self, refresh: bool = False) -> dict:
         env = await self._env(refresh)
-        nodes, files = self._nodes(env), self._files(env)
+        nodes, files, external = self._nodes(env), self._files(env), self._external(env)
         root = env["root"]
         return {
             "comfy": {"url": env["url"], "ok": env["ping"]["ok"], "error": env["ping"].get("error"),
                       "local": env["local"], "root": str(root) if root else None, "root_source": env["source"],
                       "warn": env["warn"], "configured_path": env["settings"]["comfyui"].get("path") or ""},
             "can_install": bool(root),
-            "links": LINKS, "nodes": nodes, "files": files, "busy": self.dl.busy,
+            "links": LINKS, "nodes": nodes, "files": files, "external": external, "busy": self.dl.busy,
             "dismissed": bool((env["settings"].get("setup") or {}).get("dismissed")),
-            "pending": self._pending(nodes, files),
+            "pending": self._pending(nodes, files, external),
         }
 
     @staticmethod
-    def _pending(nodes: dict, files: list[dict]) -> dict:
-        return {"nodes": nodes["missing"],
+    def _pending(nodes: dict, files: list[dict], external: list[dict] | None = None) -> dict:
+        return {"nodes": nodes["missing"] + sum(1 for e in external or [] if e["loaded"] is False),
                 "loras": sum(1 for f in files if f["group"] == "lora" and f["installed"] is False),
                 "models": sum(1 for f in files if f["group"] != "lora" and f["installed"] is False)}
 
@@ -368,7 +391,7 @@ class SetupService:
         """Resumo barato para o /api/status (usa o object_info que já está em memória)."""
         env = await self._env()
         nodes, files = self._nodes(env), self._files(env)
-        p = self._pending(nodes, files)
+        p = self._pending(nodes, files, self._external(env))
         return {**p, "total": sum(p.values()), "can_install": bool(env["root"]),
                 "dismissed": bool((env["settings"].get("setup") or {}).get("dismissed"))}
 
@@ -416,6 +439,21 @@ class SetupService:
         result["started"] = [e["id"] for e in todo]
         result["skipped"] = [i for i in ids if i not in result["started"]]
         return result
+
+    async def download_lora(self, entry: dict) -> dict:
+        """Baixa um .safetensors avulso (link do Hugging Face) para models/loras do ComfyUI."""
+        if self.dl.busy:
+            raise StoreError("Já há downloads em andamento.")
+        env = await self._env()
+        if not env["root"]:
+            raise StoreError("Não achei a pasta do ComfyUI neste computador. Informe a pasta no assistente (aba Ajustes).")
+        e = _clean({**entry, "folder": "loras"})
+        if not e or not hf.is_hf(e["url"]):
+            raise StoreError("Nome de arquivo ou link inválido para baixar.")
+        if on_disk(env["root"], "loras", e["file"]):
+            return {"started": False, "installed": True, "file": e["file"]}
+        self.dl.start([e], env["root"])
+        return {"started": True, "installed": False, "file": e["file"]}
 
     def jobs(self) -> dict:
         return {"busy": self.dl.busy, "jobs": [asdict(j) for j in self.dl.jobs.values()]}

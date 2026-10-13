@@ -1,8 +1,30 @@
-import uvicorn
+import sys
 
 from .store import Store
 from .app import ROOT
 
-if __name__ == "__main__":
+
+def main(argv: list[str]) -> int:
+    if argv[:2] == ["addon", "new"]:
+        from .addons import AddonError, new_addon
+        if len(argv) < 3:
+            print("Uso: python -m clefflow addon new <nome>")
+            return 2
+        try:
+            dest = new_addon(Store(ROOT).addons_dir, argv[2], ROOT / "defaults" / "addon_template")
+        except AddonError as e:
+            print(e)
+            return 1
+        print(f"Addon criado em {dest}. Reinicie o ClefFlow para ele aparecer em Ajustes > Addons.")
+        return 0
+    if argv:
+        print("Comandos: (sem nada) inicia o servidor | addon new <nome>")
+        return 2
+    import uvicorn
     s = Store(ROOT).settings()["server"]
     uvicorn.run("clefflow.app:app", host=s["host"], port=int(s["port"]), log_level="info")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

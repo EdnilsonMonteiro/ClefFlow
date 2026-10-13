@@ -152,6 +152,8 @@ def widget_list(info: dict) -> list[Widget]:
                 kind, options = "COMBO", list(opts.get("options") or [])
             elif t in ("INT", "FLOAT", "STRING", "BOOLEAN"):
                 kind, options = t, []
+            elif opts.get("socketless") and isinstance(opts.get("default"), (dict, list)):
+                kind, options = "JSON", []      # widget do frontend que guarda um objeto (ex.: o editor do Create Layered Image)
             else:
                 continue            # tipo de conexão (IMAGE, MODEL, ...)
             if opts.get("forceInput"):
@@ -179,6 +181,8 @@ def coerce(w: Widget, value: Any) -> Any:
             return bool(value)
         if w.kind == "STRING":
             return value if isinstance(value, str) else ("" if value is None else str(value))
+        if w.kind == "JSON":
+            return value if isinstance(value, (dict, list)) else default
         return value
     except (TypeError, ValueError):
         return default
@@ -191,6 +195,7 @@ def required_inputs(info: dict) -> set[str]:
 class Converter:
     def __init__(self, object_info: dict, randomize_seeds: bool = True, rng: random.Random | None = None):
         self.oi = object_info
+        self.bypass: set[str] = set()
         self.randomize = randomize_seeds
         self.rng = rng or random.Random()
         self.fixes: list[tuple[str, str, str, str, str]] = []   # (nó, tipo, widget, antes, depois)
@@ -198,10 +203,15 @@ class Converter:
     # ------------------------------------------------------------------ API
     def convert(self, wf: dict, overrides: dict[tuple[int, str], Any] | None = None,
                 drop_nodes: set | None = None, loader_fallback: str | None = None,
-                keep_loaders: set | None = None) -> dict[str, dict]:
+                keep_loaders: set | None = None, bypass: set | None = None,
+                lora_chain: Any = None, loras: list[dict] | None = None) -> dict[str, dict]:
+        """`bypass`: nós que repassam a entrada (como "ignorar" no editor). `lora_chain` + `loras`: trocam a
+        cadeia de LoRAs do workflow pela lista dada (ver `rewire_loras`)."""
         overrides = overrides or {}
         drop_nodes = {str(d) for d in (drop_nodes or ())}
         keep_loaders = {str(k) for k in (keep_loaders or ())}
+        self.bypass = {str(b) for b in (bypass or ())}
+        self._chain, self._loras = lora_chain, loras
         if is_api_format(wf):
             return self._from_api(wf, overrides, drop_nodes, loader_fallback, keep_loaders)
         if "nodes" not in wf:
@@ -240,7 +250,7 @@ class Converter:
         return n["type"] in FRONTEND_ONLY or n.get("mode", 0) == 2
 
     def _passthrough(self, n: dict) -> bool:
-        if n["type"] == "Reroute" or n.get("mode", 0) == 4:
+        if n["type"] == "Reroute" or n.get("mode", 0) == 4 or str(n["id"]) in self.bypass:
             return True
         if n["type"] == RGTHREE_POWER_LORA:
             return not any(isinstance(v, dict) and v.get("on") and v.get("lora") not in (None, "None")
@@ -335,7 +345,11 @@ class Converter:
             if w.name in linked and ov_key not in overrides:
                 continue
             if ov_key in overrides:
-                inputs[w.name] = overrides[ov_key]
+                v = overrides[ov_key]
+                if w.kind in ("INT", "FLOAT", "BOOLEAN"):          # 1 -> 1.0 num campo FLOAT, "off" nunca chega aqui
+                    c = coerce(w, v)
+                    v = c if c is not None else v
+                inputs[w.name] = v
                 continue
             if w.name in values:
                 v = coerce(w, values[w.name])
@@ -398,11 +412,59 @@ class Converter:
         return api
 
     def _finish(self, api: dict, drop_nodes: set, loader_fallback: str | None, keep_loaders: set):
+        if getattr(self, "_chain", None) and getattr(self, "_loras", None) is not None:
+            self.rewire_loras(api, self._chain, self._loras)
         self.prune(api, drop_nodes)
         self.keep_reachable(api)
         if loader_fallback:
             self._fix_loaders(api, loader_fallback, keep_loaders)
         self._fix_combos(api)
+
+    def rewire_loras(self, api: dict, chain: Any, loras: list[dict]):
+        """Troca a cadeia de LoRAs do grafo por uma nova, na ordem dada.
+
+        `chain`: lista de ids dos nós de LoRA do workflow, ou `{nodes: [...], model: id, clip: id}` com os nós
+        de onde a cadeia parte (por padrão, deduzidos da própria cadeia). Quem usava a saída da cadeia passa a
+        usar a da nova; com a lista vazia, usa direto a origem (nenhuma LoRA)."""
+        spec = chain if isinstance(chain, dict) else {"nodes": chain}
+        ids = {str(c) for c in spec.get("nodes") or []}
+        present = {c for c in ids if c in api}
+        model_src = [str(spec["model"]), 0] if spec.get("model") is not None else None
+        clip_src = [str(spec["clip"]), 0] if spec.get("clip") is not None else None
+        for c in sorted(present):
+            ins = api[c]["inputs"]
+            if model_src is None and is_link(ins.get("model")) and str(ins["model"][0]) not in ids:
+                model_src = list(ins["model"])
+            if clip_src is None and is_link(ins.get("clip")) and str(ins["clip"][0]) not in ids:
+                clip_src = list(ins["clip"])
+        if model_src is None:
+            raise ConversionError("Não achei de onde a cadeia de LoRAs do workflow parte (lora_chain).")
+        cur_model, cur_clip = model_src, clip_src
+        new: dict[str, dict] = {}
+        for i, lo in enumerate(loras, 1):
+            nid = f"lora_{i}"
+            inputs = {"lora_name": lo["file"], "strength_model": float(lo["strength"]), "model": cur_model}
+            if clip_src is not None:
+                inputs["strength_clip"] = float(lo.get("strength_clip", lo["strength"]))
+                inputs["clip"] = cur_clip
+            else:
+                inputs["strength_clip"] = 0.0
+            new[nid] = {"class_type": "LoraLoader", "inputs": inputs, "_meta": {"title": f"LoRA: {lo.get('title', lo['file'])}"}}
+            cur_model = [nid, 0]
+            cur_clip = [nid, 1] if clip_src is not None else None
+        for node in api.values():
+            for k, v in list(node["inputs"].items()):
+                if is_link(v) and str(v[0]) in ids:
+                    cls = api[str(v[0])]["class_type"] if str(v[0]) in api else ""
+                    is_clip = v[1] == 1 and cls != "LoraLoaderModelOnly"
+                    target = cur_clip if is_clip else cur_model
+                    if target is None:
+                        del node["inputs"][k]
+                    else:
+                        node["inputs"][k] = list(target)
+        for c in ids:
+            api.pop(c, None)
+        api.update(new)
 
     @staticmethod
     def _base(name: str) -> str:

@@ -131,10 +131,14 @@ class ClefClient:
 
 
 # ----------------------------------------------------------------- mock
+_STOP = {"por", "uma", "umas", "uns", "com", "sem", "para", "que", "mas", "dos", "das", "nao", "mais", "como", "ele",
+         "ela", "seu", "sua", "the", "and", "for", "with", "from", "use", "quando", "pedido", "imagem", "imagens"}
+
+
 def _tokens(text: str) -> set[str]:
     t = unicodedata.normalize("NFKD", text.lower())
     t = "".join(c for c in t if not unicodedata.combining(c))
-    return {w for w in re.findall(r"[a-z0-9]{3,}", t)}
+    return {w for w in re.findall(r"[a-z0-9]{3,}|\d+", t)} - _STOP
 
 
 class MockClef:

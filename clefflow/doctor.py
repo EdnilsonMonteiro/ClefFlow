@@ -11,11 +11,19 @@ from .converter import ConversionError, Converter, flatten_subgraphs, node_id, w
 from .store import Store
 
 
-def validate_workflow(store: Store, wid: str, oi: dict) -> dict:
-    m = store.manifest(wid)
-    res: dict[str, Any] = {"id": wid, "title": m.get("title", wid), "errors": [], "warnings": []}
+def validate_workflow(store: Store, wid: str, oi: dict, mode: str | None = None) -> dict:
+    m = store.manifest(wid, mode)
+    title = m.get("title", wid) + (f" ({m.get('mode_title') or m['mode']})" if m.get("mode") and len(m.get("modes") or {}) > 1 else "")
+    res: dict[str, Any] = {"id": wid, "mode": m.get("mode"), "title": title, "errors": [], "warnings": []}
+    if m.get("kind") == "action":                       # fluxo em Python: confere só se a ação existe nos addons
+        ref = str(m.get("action") or "")
+        if not ref:
+            res["errors"].append("Falta o campo 'action' (addon.nome) no registro.")
+        elif store.action_checker and not store.action_checker(ref):
+            res["errors"].append(f"A ação '{ref}' não foi registrada por nenhum addon ligado (veja Ajustes > Addons).")
+        return _final(res)
     try:
-        wf = store.workflow_json(wid)
+        wf = store.workflow_json(wid, mode)
     except Exception as e:  # noqa: BLE001
         res["errors"].append(str(e))
         return _final(res)
@@ -40,6 +48,8 @@ def validate_workflow(store: Store, wid: str, oi: dict) -> dict:
         elif t in oi and p.get("widget", "value") not in [w.name for w in widget_list(oi[t])]:
             res["errors"].append(f"Prompt: {t} não tem o widget '{p.get('widget', 'value')}'.")
     for p in m.get("params", []):
+        if "node" not in p:                      # ex.: 'crop' é feito pelo ClefFlow, não por um nó
+            continue
         t = node_type(p["node"])
         if not t:
             res["errors"].append(f"Parâmetro '{p['key']}': o nó {p['node']} não existe.")
@@ -48,6 +58,18 @@ def validate_workflow(store: Store, wid: str, oi: dict) -> dict:
             for w in p.get("widgets", []):
                 if w not in have:
                     res["errors"].append(f"Parâmetro '{p['key']}': {t} não tem o widget '{w}'.")
+    chain = m.get("lora_chain")
+    chain_nodes = chain.get("nodes", []) if isinstance(chain, dict) else (chain or [])
+    for n in chain_nodes:
+        if not node_type(n):
+            res["errors"].append(f"Cadeia de LoRAs: o nó {n} não existe.")
+    for name, k in (m.get("knobs") or {}).items():
+        for n in (k.get("nodes") or [k.get("node")]):
+            t = node_type(n)
+            if not t:
+                res["errors"].append(f"Ajuste '{name}': o nó {n} não existe.")
+            elif t in oi and k["widget"] not in [w.name for w in widget_list(oi[t])]:
+                res["errors"].append(f"Ajuste '{name}': {t} não tem o widget '{k['widget']}'.")
     for o in m.get("outputs", []):
         if node_type(o) not in ("SaveImage", "PreviewImage", "SaveImageAdvanced"):
             res["errors"].append(f"Saída: o nó {o} não é SaveImage/PreviewImage ({node_type(o)}).")
@@ -62,7 +84,8 @@ def validate_workflow(store: Store, wid: str, oi: dict) -> dict:
         keep.add(str(s["node"]))
     conv = Converter(oi)
     try:
-        api = conv.convert(wf, overrides, drop, "__doctor__.png", keep)
+        api = conv.convert(wf, overrides, drop, "__doctor__.png", keep, lora_chain=m.get("lora_chain"),
+                           loras=[] if m.get("lora_chain") else None)
     except ConversionError as e:
         res["errors"].append(str(e))
         return _final(res)
@@ -124,4 +147,4 @@ def _final(res: dict) -> dict:
 
 
 def validate_all(store: Store, oi: dict) -> list[dict]:
-    return [validate_workflow(store, wid, oi) for wid in store.manifests()]
+    return [validate_workflow(store, wid, oi, md) for wid in store.manifests() for md, _m in store.variants(wid)]

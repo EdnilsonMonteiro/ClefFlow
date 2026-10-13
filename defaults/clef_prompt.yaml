@@ -1,98 +1,289 @@
 # Prompt do Clef: o que cada workflow faz, quais prompts ele pode usar
 # e os casos de uso (sequências de workflows). Editável aqui ou na interface.
+# O texto que o Clef lê (instructions, description, about) é em inglês; name e label são texto de tela, em
+# português, traduzidos pelo catálogo web/locales/en.json.
 
-instructions: Você encaminha pedidos de edição de imagem para workflows do ComfyUI (Qwen-Image 2.1). Escolha o workflow
-  mais específico para o pedido. Prefira as versões Turbo, a não ser que o usuário peça máxima qualidade, detalhe
-  ou diga que não tem pressa; nesse caso use Quality. A imagem 1 anexada costuma ser a cena base e a imagem 2 a
-  referência (pessoa, rosto, objeto), a menos que o usuário diga o contrário no texto. Se não houver imagem anexada
-  e o usuário quiser criar algo, use a geração do zero. Para mover ou trocar objetos de lugar dentro de UMA imagem (caixas vermelha
-  e verde), use object_move ou object_move_turbo. O prompt 'mover' leva um objeto para um destino vazio e o 'trocar'
-  faz dois objetos trocarem de lugar entre si. Esses dois fluxos exigem DUAS caixas (vermelha
-  e verde) e só mexem em objetos que já existem na imagem. Quando o pedido é acrescentar, colocar ou inserir um objeto NOVO
-  que não existe na imagem, com UM quadrado vermelho só no lugar onde ele deve aparecer, use replace_redbox com o prompt
-  'adicionar'; para trocar o que já está dentro do quadrado por outra coisa, replace_redbox com 'substituir'. Em resumo,
-  um objeto que já existe e vai para outro lugar é 'mover'; dois objetos que existem e trocam entre si é 'trocar';
-  um objeto que não existe e passa a existir é 'adicionar'. Só peça uma segunda etapa quando o pedido realmente exigir
-  dois workflows em sequência.
+instructions: 'You route image editing requests to ComfyUI workflows (Qwen-Image 2.1). Pick the most specific
+  workflow for the request. The ''edit'' workflow does general editing, people swaps (one or several; body, head or
+  both), clothing or tattoo swaps and turning the point of view: the kind is decided next by the prompt and the LoRAs.
+  Requests to restore, improve the quality, sharpen or recover a photo (without changing anything in it) go to ''edit''
+  with the restoration prompt. Each workflow''s mode (turbo or quality) is also a separate decision: prefer turbo,
+  unless the user asks for top quality, more detail or says there is no rush. Attached image 1 is usually the base
+  scene and image 2 the reference (person, face, object), unless the user says otherwise in the text.
+  If no image is attached and the user wants to create something, use generation from scratch. To move or swap objects
+  inside ONE image (red and green boxes), use object_move. The ''mover'' prompt takes one object to an empty
+  destination and ''trocar'' makes two objects swap places. These two flows need TWO boxes (red and green) and only
+  touch objects that already exist in the image. When the request is to add, put or insert a NEW object that is not in
+  the image, with ONE red square only where it should appear, use replace_redbox with the ''adicionar'' prompt; to
+  replace what is inside the square with something else, replace_redbox with ''substituir''; to just take the object
+  out of the square, replace_redbox with ''remover''.
+  In short: an object that exists and goes somewhere else is ''mover''; two existing objects that swap with each other
+  is ''trocar''; an object that does not exist and starts to exist is ''adicionar''. To bring SEVERAL objects from
+  different images into one image (3 or more images), use transfer_multi.
+  With TWO images, a person or object from one of them going into the other, the choice is between transfer_object and
+  the ''Colar e fundir'' (paste and blend) use case, and the rule comes from tests: (1) if the thing goes IN PLACE OF
+  something or someone already in the scene ("in place of", "replace", "swap X for Y", "instead of") use
+  transfer_object, because only it removes what was there; pasting leaves the old one underneath. (2) If the person or
+  object must HOLD, WEAR or touch something from the other image ("make her hold these scissors") use transfer_object.
+  (3) To ADD a person or character somewhere ("put batman sitting on the bench", "put her on the beach", "him behind
+  the family"), even with a new pose, use ''Colar e fundir'': the user picks the place and size, the cutout keeps the
+  identity and the blend completes the body and the pose. (4) To put an OBJECT on a surface or in a scene ("the
+  scissors on the table", "the pawn on the board") use ''Colar e fundir'' (it stays identical and the user controls
+  the size); use transfer_object only if the object must change angle or be redrawn. ''edit'' is NOT for putting
+  someone in another setting, nor for swapping ONE specific person in a group: it swaps the person on the left and
+  often hits the wrong target. If the user already has a finished collage and only wants to fix light, shadow and
+  perspective, use colar_fundir. To CHANGE THE CAMERA ANGLE of a photo of a PLACE (bedroom, living room, room,
+  kitchen, shop, landscape, a place without a person in focus: "see it from another angle", "more to the left", "from
+  above"), use ambiente_3d, which turns the photo into 3D so the user picks the angle with the mouse. To change the camera angle of a photo of a PERSON (see
+  them from the side, from above, from below, three-quarter, from behind), use the use case ''Mudar o ângulo da pessoa
+  (3D)''. The ''girar'' prompt of edit is for orbiting around an OBJECT. To expand the photo (widen the framing to the
+  sides, up or down) or fill gray areas, use edit with the ''expandir'' prompt. If the request changes the person''s
+  angle AND sends a second image with their face or body, use the use case ''Mudar o ângulo da pessoa e corrigir o
+  rosto (3D + troca)''. Only ask for a second step when the request really needs two workflows in a row: one request,
+  however long, is usually ONE workflow.'
 workflows:
-  edit_turbo:
+  edit:
     enabled: true
-    description: 'Edição geral rápida (6 passos) de uma imagem a partir de uma instrução em texto: trocar cor, roupa,
-      objeto, luz ou estilo. Aceita até 2 imagens de referência, que são opcionais.'
-  edit_quality:
-    enabled: true
-    description: Edição geral em alta qualidade (25 passos). Aceita até 2 imagens de referência (estilo, roupa, cor,
-      assunto). Use quando o usuário pedir máxima qualidade ou quando houver referência.
+    description: 'General image editor with up to 8 images. Used to: edit by text instruction (color, object, light,
+      style, with or without a reference), copy the style of a reference, SWAP PEOPLE in the scene (one or several, from
+      left to right) with the people in the references, swapping the whole person, only the body or only the head,
+      SWAP CLOTHING or transfer TATTOOS from a reference to the person, give the image a casual phone photo look, RESTORE
+      or improve the quality of a photo (small, compressed, blurry, phone or old: removes noise and blur and recovers
+      sharpness, without changing the content), EXPAND the photo to the sides (outpaint) or fill gray areas, and turn
+      the point of view around an object. It also edits the people inside one photo (make two people hug, kiss, look
+      at each other, change their pose or expression). Clef picks the prompt and turns on the right LoRAs for the
+      request. The references go in the order they were attached.'
   background_removal:
     enabled: true
-    description: Remove o FUNDO de uma imagem e deixa só o sujeito (PNG com transparência, ou fundo branco se o usuário
-      pedir). Não muda o sujeito. Use para "tirar o fundo", "recortar", "isolar".
+    description: Removes the BACKGROUND of an image and leaves only the subject (PNG with transparency, or a white
+      background if the user asks). Does not change the subject. Use for "remove the background", "cut out", "isolate".
+  colar_recortar:
+    enabled: true
+    description: INTERNAL STEP of the Paste use case. Cuts out ONLY the person (SAM3) or the object (RMBG) from an image
+      and returns a PNG with a transparent background; the user checks it and can redo it with a box. Do not pick this
+      flow on its own.
+  colar_posicionar:
+    enabled: true
+    description: INTERNAL STEP of the Paste use case. The user drags and resizes the cutout over the background image
+      and the flow builds the collage. Do not pick this flow on its own.
+  colar_fundir:
+    enabled: true
+    description: Blends a collage that is already done (a person or object pasted into another setting) and fixes
+      perspective, light, shadow and color temperature so it looks like a single photo, without changing position or
+      size (if the pasted person is cut off or the request asks for a pose or action, it completes the body and the
+      scene). Use when the user sends ONE image that is already a collage and asks to "blend", "integrate" or "make the
+      collage look natural".
+  ambiente_3d:
+    enabled: true
+    description: Changes the CAMERA ANGLE of a photo of a PLACE (bedroom, living room, room, kitchen, shop, street,
+      landscape) without a person in focus. The photo becomes a 3D model (Gaussian Splat) that the user turns with the
+      mouse to the sides, up and down. It does NOT widen or extend a photo (that is edit with the expandir prompt). Use for "see the room from another angle", "change the camera", "more from
+      the left", "seen from above" in a place. One image only.
+  pessoa_3d:
+    enabled: true
+    description: INTERNAL STEP of the use case 'Mudar o ângulo da pessoa (3D)'. Turns the person (without the background)
+      into 3D for the user to pick the angle. Do not pick this flow on its own.
+  anyangle:
+    enabled: true
+    description: INTERNAL STEP. Redraws the photo at a new camera angle from the 3D render at that angle and the
+      original photo (AnyAngle LoRA). Do not pick this flow on its own.
   t2i:
     enabled: true
-    description: Gera uma imagem NOVA a partir de texto, sem nenhuma imagem de entrada, em alta qualidade (25 passos).
-      Use quando o usuário pedir máxima qualidade ou não tiver pressa; sem pedido de qualidade prefira t2i_turbo.
-  t2i_turbo:
-    enabled: true
-    description: Gera uma imagem NOVA a partir de texto, sem nenhuma imagem de entrada (6 passos). Use só quando
-      o usuário pedir para criar/desenhar algo e não anexou imagem.
-  bodyswap_turbo:
-    enabled: true
-    description: 'Troca a PESSOA inteira (corpo e roupa) da cena pela pessoa de uma referência, mantendo pose, luz
-      e fundo. Versão rápido (6 passos). Precisa de 2 imagens: cena e pessoa de referência. Uma 3ª imagem
-      opcional define o lugar onde a pessoa fica.'
-  bodyswap_quality:
-    enabled: true
-    description: 'Troca a PESSOA inteira (corpo e roupa) da cena pela pessoa de uma referência, mantendo pose, luz
-      e fundo. Versão alta qualidade (25 passos). Precisa de 2 imagens: cena e pessoa de referência.'
-  headswap_turbo:
-    enabled: true
-    description: 'Troca só a CABEÇA/rosto da pessoa da cena pelo de uma referência (face swap), mantendo corpo,
-      luz e fundo. Versão rápido (6 passos). Precisa de 2 imagens: corpo/cena e rosto.'
-  headswap_quality:
-    enabled: true
-    description: 'Troca só a CABEÇA/rosto da pessoa da cena pelo de uma referência (face swap), mantendo corpo,
-      luz e fundo. Versão alta qualidade (25 passos). Precisa de 2 imagens: corpo/cena e rosto.'
-  multi_bodyswap:
-    enabled: true
-    description: Troca VÁRIOS corpos de uma cena (da esquerda para a direita) por referências diferentes, uma por
-      pessoa. Use quando a cena tem 2 ou 3 pessoas e o usuário enviou uma referência para cada.
+    description: Generates a NEW image from text, without any input image. Use only when the user asks to create or draw
+      something and did not attach an image.
   object_move:
     enabled: true
-    description: 'Move um objeto de lugar ou troca dois objetos de lugar entre si, dentro da MESMA imagem: o usuário
-      desenha uma caixa vermelha num objeto e uma verde no destino (vazio, para mover) ou no outro objeto (para
-      trocar). Só reposiciona objetos que já existem; não serve para adicionar um objeto novo (use replace_redbox).
-      Versão em alta qualidade.'
-  object_move_turbo:
-    enabled: true
-    description: 'Move um objeto de lugar ou troca dois objetos de lugar entre si, dentro da MESMA imagem: o usuário
-      desenha uma caixa vermelha num objeto e uma verde no destino (vazio, para mover) ou no outro objeto (para
-      trocar). Só reposiciona objetos que já existem; não serve para adicionar um objeto novo (use replace_redbox).
-      Versão rápida (6 passos).'
+    description: 'Moves an object or makes two objects swap places, inside the SAME image: the user draws a red box on
+      an object and a green one on the destination (empty, to move) or on the other object (to swap). It only
+      repositions objects that already exist; it does not add a new object (use replace_redbox).'
   replace_redbox:
     enabled: true
-    description: Trabalha com UM quadrado vermelho. Ou ADICIONA um objeto novo no lugar marcado (local vazio,
-      nada a tirar) ou SUBSTITUI/apaga o que já está dentro do quadrado por outra coisa. Não move nem troca objetos
-      de lugar e não usa caixa verde.
+    description: Works with red squares on a single image. ADDS a new object in the marked spot (empty place, nothing to
+      remove), REPLACES what is already inside the square with something else, or REMOVES the object there. The user can
+      mark SEVERAL squares, but only when it is the SAME object in all of them (add 5 identical vases, erase 3 chairs);
+      different objects need one edit at a time. It does not move or swap objects and does not use a green box. It works on ONE image
+      and never brings anything from a second image; with two images where one holds the thing to bring in, use Colar e fundir or
+      transfer_object.
   transfer_object:
     enabled: true
-    description: Leva um objeto, pessoa ou parte do corpo de uma imagem (fonte, caixa vermelha) para outra (destino,
-      caixa verde). Serve também para trocar o fundo/cenário de uma pessoa. Versão em alta qualidade.
-  transfer_object_turbo:
+    description: 'Two images. REDRAWS a person, character or object from one image (red box) inside a green box in the
+      other, adapting pose, perspective, light and style. It is the right one to REPLACE someone or something already in
+      the scene ("put the joker in place of the guy in red", "swap the white horse for the black pawn", "replace the
+      crouching man"), because what was in the green box goes away entirely, and to make someone HOLD or WEAR an object
+      from the other image. To just add someone or an object in a chosen place, prefer the Colar e fundir use case. It is not for swapping only the
+      face, head or clothing of a person (that is edit with the people swap prompt).'
+  transfer_multi:
     enabled: true
-    description: Leva um objeto, pessoa ou parte do corpo de uma imagem (fonte, caixa vermelha) para outra (destino,
-      caixa verde). Serve também para trocar o fundo/cenário de uma pessoa. Versão rápida (6 passos).
+    description: Brings SEVERAL objects, people or body parts, each coming from a different image, into one destination
+      image. 3 or more images are sent - one is the destination (the scene that receives them) and the others are the
+      objects. The user draws a numbered green box on the destination for each object and says which image goes in each
+      one, and marks the object with a red box in each source image. Clef decides how many objects to bring and which
+      image is the destination.
 recipes:
 - id: trocar_pessoa_e_fundo
   name: Trocar a pessoa e o fundo
   enabled: true
-  description: 'Quando o usuário envia 3 imagens: a cena, a pessoa de referência e um novo fundo. Primeiro troca
-    o corpo da cena pela pessoa de referência; depois leva essa pessoa para o novo fundo.'
+  images: 3
+  description: 'Exactly 3 images and the request swaps one person for another AND takes the result to another place.
+    One image has the SCENE with the person to be swapped (pose, clothing and framing come from it), another has the
+    REFERENCE PERSON (the face and/or body that must appear instead) and the third shows the PLACE, setting, scenery
+    or background where the final result must be. The user may just say "the setting is image 3" or "the person from
+    image 3 in the pose of image 2"; they do not need to use the words scene or new background. A face or body swap plus
+    a new place is always this case. Without a new place, use the general editor; with 2 images, it does not apply.'
+  roles:
+  - key: scene
+    label: 'Cena'
+    about: 'The photo with the person to be swapped: the pose, clothing and framing come from it. May be called "the pose of image N" or "the person to be swapped".'
+    default: 1
+  - key: person
+    label: 'Pessoa de referência'
+    about: 'Who must appear instead (face, body and/or clothing): the identity comes from it. May be called "the person from image N" or "the face from image N".'
+    default: 2
+  - key: background
+    label: 'Ambiente'
+    about: 'The place, setting or background where the final result must be; usually almost without people. May be called "the setting is image N", "the place" or "the background".'
+    default: 3
   steps:
-  - workflow: bodyswap_turbo
+  - workflow: edit
+    prompt: trocar_pessoas
+    mode: turbo
+    inputs:
+      image_1: role:scene
+      image_2: role:person
+    vars:
+      people: '1'
+      scope: both
+      place: none
+  - workflow: transfer_object
+    mode: turbo
+    inputs:
+      image_1: role:background
+      image_2: previous
+    vars:
+      relacao: adicionar
+- id: colar_e_fundir
+  name: Colar e fundir
+  enabled: true
+  images: 2
+  description: Exactly 2 images and NO face or body swap. One image is the setting (the place) and the other has the
+    person or object the request says to paste, insert, put or fit into the setting, in any upload order. The cutout is
+    automatic (the person, or the object the request named, with a transparent background) and the user checks it on
+    screen and can redo it with a box; then picks where it goes and its size; then the result is blended into the place
+    (perspective, light and shadow); if the pasted person is cut off or the request asks for a pose or action (sitting
+    on the chair, holding something), the blend completes the body and the scene. It is not for putting the thing IN
+    PLACE OF something or someone already in the scene (that is transfer_object, which removes what was there), nor for
+    making someone hold an object, nor for moving objects inside a single image, nor for swapping the person of a scene
+    for another, nor for 3 images.
+  roles:
+  - key: background
+    label: Ambiente
+    about: The place, setting or background that RECEIVES the collage and where the final result stays. It may have
+      objects similar to the one being pasted; even so it is the place, not the source. May be called "the setting is
+      image N", "the room", "the scene", "the background", "here".
+    default: 1
+  - key: subject
+    label: Pessoa ou objeto a colar
+    about: 'The image the person or object the request says to paste COMES FROM: look in it for the thing the user
+      NAMED in the request ("the chair", "the dog", "her"). It may have other things around; the cutout takes only the
+      named one.'
+    default: 2
+  steps:
+  - workflow: colar_recortar
+    inputs:
+      image_1: role:subject
+  - workflow: colar_posicionar
+    inputs:
+      image_1: role:background
+      image_2: previous
+  - workflow: colar_fundir
+    inputs:
+      image_1: previous
+- id: colar_sem_fundir
+  name: Só colar (sem fundir)
+  enabled: true
+  images: 2
+  description: 'Same as Colar e fundir (2 images: the setting and the person or object, in any order), but the user
+    wants only the collage, without the perspective and light adjustment: says "just paste", "without blending" or
+    "don''t touch the rest".'
+  roles:
+  - key: background
+    label: Ambiente
+    about: The place, setting or background that RECEIVES the collage and where the final result stays. It may have
+      objects similar to the one being pasted; even so it is the place, not the source. May be called "the setting is
+      image N", "the room", "the scene", "the background", "here".
+    default: 1
+  - key: subject
+    label: Pessoa ou objeto a colar
+    about: 'The image the person or object the request says to paste COMES FROM: look in it for the thing the user
+      NAMED in the request ("the chair", "the dog", "her"). It may have other things around; the cutout takes only the
+      named one.'
+    default: 2
+  steps:
+  - workflow: colar_recortar
+    inputs:
+      image_1: role:subject
+  - workflow: colar_posicionar
+    inputs:
+      image_1: role:background
+      image_2: previous
+- id: pessoa_angulo
+  name: Mudar o ângulo da pessoa (3D)
+  enabled: true
+  images: 1
+  description: 'One photo of a PERSON and the request is to see that same person and scene from another CAMERA ANGLE:
+    from the side, three-quarter, from above, from below, more to the left or right, from behind. The person becomes
+    3D, the user picks the angle with the mouse and the photo is redrawn at that angle keeping the person, the clothing
+    and the style. It is not for swapping the person, the clothing or the background, nor for places without a person
+    (use ambiente_3d), nor for objects or animals (use edit with the girar prompt).'
+  steps:
+  - workflow: pessoa_3d
     inputs:
       image_1: user:1
-      image_2: user:2
-  - workflow: transfer_object_turbo
+  - workflow: anyangle
+    loras: []
     inputs:
-      image_1: user:3
+      image_1: user:1
       image_2: previous
+- id: pessoa_angulo_troca
+  name: Mudar o ângulo da pessoa e corrigir o rosto (3D + troca)
+  enabled: true
+  images: 2
+  description: 'Exactly 2 images: the photo of a PERSON to see from another CAMERA ANGLE (from the side, from above,
+    from below, three-quarter, from behind) and a REFERENCE image with that person''s face, head or body, to keep the
+    identity sharp after the angle change (the 3D loses detail in the face). The person becomes 3D, the user picks the
+    angle, the photo is redrawn at that angle and at the end the head (or the body) is swapped for the reference''s.
+    Use when the request talks about changing the angle and also about using the face, head or body from the other
+    image. Without changing the angle, it is the editor''s people swap; with a single image, it is Mudar o ângulo da
+    pessoa (3D).'
+  roles:
+  - key: person
+    label: Foto da pessoa
+    about: The photo that will change angle (the whole person in the scene). May be called "the photo", "image N",
+      "her", "him".
+    default: 1
+  - key: reference
+    label: Referência (rosto ou corpo)
+    about: The face, head or body that must appear in the result; usually a close-up of the face or another photo of the
+      same person.
+    default: 2
+  steps:
+  - workflow: pessoa_3d
+    inputs:
+      image_1: role:person
+  - workflow: anyangle
+    loras: []
+    inputs:
+      image_1: role:person
+      image_2: previous
+  - workflow: edit
+    prompt: trocar_pessoas
+    inputs:
+      image_1: previous
+      image_2: role:reference
+    vars:
+      people: '1'
+      place: none
+    request: '{request}
+
+      The reference image only restores the identity after the camera angle change: if it shows just a face or a head,
+      swap only the head; keep the new camera angle, pose and background of <image1>.'

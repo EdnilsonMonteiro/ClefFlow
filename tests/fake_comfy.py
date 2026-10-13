@@ -1,6 +1,7 @@
 """ComfyUI de mentira para testes: serve o `object_info` real reduzido (tests/object_info.json) e um servidor HTTP mínimo."""
 from __future__ import annotations
 
+import copy
 import io
 import json
 import threading
@@ -20,12 +21,14 @@ class FakeComfy:
     """Servidor HTTP mínimo: /object_info, /upload/image, /prompt, /history, /view, /free."""
 
     def __init__(self, object_info: dict, fail_node: str | None = None, delay: float = 0.0):
-        self.oi = object_info
+        self.oi = copy.deepcopy(object_info)          # cada teste muda o seu: o object_info da sessão é compartilhado
         self.delay, self.started = delay, {}
         self.prompts: dict[str, dict] = {}
         self.uploads: dict[str, bytes] = {}
         self.fail_node = fail_node
         self.freed = 0
+        self.view_rgba = False            # True: /view devolve um recorte com borda transparente (como o RMBG)
+        self.views: dict[str, bytes] = {}  # nome do arquivo de saída -> PNG a devolver no /view
         self.stats = {"system": {}}
         outer = self
 
@@ -51,8 +54,19 @@ class FakeComfy:
                     pid = p.rsplit("/", 1)[1]
                     return self._json(outer._history(pid))
                 if p == "/view":
+                    from urllib.parse import parse_qs, urlparse
+                    name = (parse_qs(urlparse(self.path).query).get("filename") or [""])[0]
                     buf = io.BytesIO()
-                    Image.new("RGB", (64, 48), (200, 80, 40)).save(buf, format="PNG")
+                    if name in outer.views:                       # imagem específica para um nó de saída
+                        buf.write(outer.views[name])
+                    elif name.endswith(".spz"):                   # arquivo 3D do SaveGLB (conteúdo de mentira)
+                        buf.write(b"SPZ-FAKE:" + name.encode())
+                    elif outer.view_rgba:
+                        im = Image.new("RGBA", (64, 48), (0, 0, 0, 0))
+                        im.paste(Image.new("RGBA", (48, 32), (200, 80, 40, 255)), (8, 8))
+                        im.save(buf, format="PNG")
+                    else:
+                        Image.new("RGB", (64, 48), (200, 80, 40)).save(buf, format="PNG")
                     b = buf.getvalue()
                     self.send_response(200)
                     self.send_header("Content-Type", "image/png")
@@ -116,4 +130,6 @@ class FakeComfy:
         for nid, node in prompt.items():
             if node["class_type"] in ("SaveImage", "PreviewImage", "SaveImageAdvanced"):
                 outs[nid] = {"images": [{"filename": f"out_{nid}.png", "subfolder": "", "type": "output" if node["class_type"] == "SaveImage" else "temp"}]}
+            elif node["class_type"] == "SaveGLB":
+                outs[nid] = {"3d": [{"filename": f"splat_{nid}.spz", "subfolder": "clefflow", "type": "output"}]}
         return {pid: {"status": {"status_str": "success", "completed": True, "messages": []}, "outputs": outs}}

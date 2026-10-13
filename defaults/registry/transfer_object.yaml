@@ -1,8 +1,6 @@
-# Ligação técnica do workflow 'transfer_object' (nós do ComfyUI). Raramente precisa mudar.
+# Ligação técnica do workflow 'transfer_object' (nós do ComfyUI). Cada modo é um arquivo; o Clef escolhe o modo. Raramente precisa mudar.
 
 id: transfer_object
-file: Qwen2.1 Transfer Object (2 imagens).json
-title: Transferir objeto entre imagens (Quality)
 group: objetos
 images:
 - key: image_1
@@ -41,5 +39,18 @@ params:
   - box_y
   - box_w
   - box_h
-outputs:
-- 14
+title: Transferir objeto entre imagens
+modes:
+  turbo:
+    title: Rápido
+    file: Qwen2.1 Transfer Object Turbo (2 imagens).json
+    outputs:
+    - 38
+    when: 'Fast, 6 steps. It is the default: use it whenever the user does not ask for more quality.'
+  quality:
+    title: Qualidade
+    file: Qwen2.1 Transfer Object (2 imagens).json
+    outputs:
+    - 14
+    when: Slower and more detailed, 25 steps. Only when the user asks for top quality, more detail or says there is no 
+      rush.

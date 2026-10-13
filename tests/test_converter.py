@@ -11,10 +11,12 @@ from clefflow.store import Store
 
 ROOT = Path(__file__).resolve().parent.parent
 WF = ROOT / "defaults" / "workflows"
+LEG = ROOT / "tests" / "legacy" / "workflows"          # os workflows de antes da unificação (referência dos testes)
 
 
 def load(name):
-    return json.loads((WF / name).read_text(encoding="utf-8"))
+    p = WF / name if (WF / name).exists() else LEG / name
+    return json.loads(p.read_text(encoding="utf-8"))
 
 
 def test_widgets_follow_saved_order_and_control_values(oi):
@@ -161,7 +163,7 @@ def test_api_format_passthrough_with_overrides(oi):
 
 
 def test_original_files_are_never_modified(oi):
-    p = WF / "Qwen2.1 Image Edit Quality.json"
+    p = LEG / "Qwen2.1 Image Edit Quality.json"
     before = p.read_bytes()
     Converter(oi).convert(json.loads(before))
     assert p.read_bytes() == before
@@ -171,7 +173,7 @@ def test_original_files_are_never_modified(oi):
 def test_every_default_workflow_validates_against_real_object_info(project, oi):
     store = Store(project)
     results = validate_all(store, oi)
-    assert len(results) == 15
+    assert len(results) == 20          # 13 workflows (colar_recortar tem 3 modos); transfer_multi também tem 2 modos; edit, object_move, transfer_object, t2i e colar_recortar (pessoa, objeto) têm 2 modos
     bad = {r["id"]: r["errors"] for r in results if not r["ok"]}
     assert not bad, bad
     assert all(not r["warnings"] for r in results), [r for r in results if r["warnings"]]
@@ -189,15 +191,15 @@ def test_doctor_flags_wrong_binding_and_missing_model(project, oi):
     store = Store(project)
     import yaml
     store.ensure_custom_dirs()
-    m = yaml.safe_load((project / "defaults" / "registry" / "edit_quality.yaml").read_text(encoding="utf-8"))
+    m = yaml.safe_load((project / "defaults" / "registry" / "edit.yaml").read_text(encoding="utf-8"))
     m["images"][0]["node"] = 18          # TextEncode, não LoadImage
-    (project / "custom" / "registry" / "edit_quality.yaml").write_text(yaml.dump(m), encoding="utf-8")
-    r = validate_workflow(store, "edit_quality", oi)
+    (project / "custom" / "registry" / "edit.yaml").write_text(yaml.dump(m), encoding="utf-8")
+    r = validate_workflow(store, "edit", oi)
     assert not r["ok"] and "LoadImage" in r["errors"][0]
-    (project / "custom" / "registry" / "edit_quality.yaml").unlink()
+    (project / "custom" / "registry" / "edit.yaml").unlink()
     oi2 = json.loads(json.dumps(oi))
     oi2["UNETLoader"]["input"]["required"]["unet_name"] = [["outro.safetensors"], {}]
-    r2 = validate_workflow(store, "edit_quality", oi2)
+    r2 = validate_workflow(store, "edit", oi2)
     assert r2["ok"] and any("qwen_image_2.1_int8_convrot" in w for w in r2["warnings"])
 
 
@@ -259,7 +261,7 @@ def test_empty_optional_images_leave_the_graph(project, oi):
     o ComfyUI não executa nada para ela, então o fluxo não fica mais lento."""
     store = Store(project)
     wids = _optional_workflows(store)
-    assert {"edit_quality", "edit_turbo", "bodyswap_turbo", "multi_bodyswap"} <= set(wids)
+    assert "edit" in wids
     for wid in wids:
         keys = [s["key"] for s in store.manifest(wid)["images"]]
         required = [s["key"] for s in store.manifest(wid)["images"] if s.get("required", True)]
@@ -280,3 +282,69 @@ def test_every_loadimage_in_defaults_is_connected():
         used = {l[1] for l in wf["links"]}
         loose = [n["id"] for n in wf["nodes"] if n["type"] == "LoadImage" and n["id"] not in used]
         assert not loose, (p.name, loose)
+
+
+def test_trim_to_alpha_cuts_transparent_borders_and_rejects_opaque_or_empty():
+    import io
+    from PIL import Image
+    from clefflow.storage import NoTransparency, crop_fraction, trim_to_alpha
+
+    def enc(im):
+        b = io.BytesIO(); im.save(b, format="PNG"); return b.getvalue()
+    im = Image.new("RGBA", (40, 30), (0, 0, 0, 0)); im.paste(Image.new("RGBA", (10, 6), (255, 0, 0, 255)), (12, 9))
+    assert Image.open(io.BytesIO(trim_to_alpha(enc(im)))).size == (10, 6)
+    for bad in (Image.new("RGB", (8, 8)), Image.new("RGBA", (8, 8), (1, 2, 3, 255)), Image.new("RGBA", (8, 8), (1, 2, 3, 0))):
+        with pytest.raises(NoTransparency):
+            trim_to_alpha(enc(bad))
+    assert Image.open(io.BytesIO(crop_fraction(enc(Image.new("RGB", (100, 50))), [0.5, 0.5, 0.9, 0.9]))).size == (50, 25)
+
+
+def test_place_layer_clips_the_part_outside_the_background_and_keeps_free_proportion():
+    import io
+
+    from PIL import Image
+
+    from clefflow.storage import place_layer
+    buf = io.BytesIO()
+    Image.new("RGBA", (40, 80), (255, 0, 0, 255)).save(buf, format="PNG")
+    ov = buf.getvalue()
+    size = lambda b: Image.open(io.BytesIO(b)).size                      # noqa: E731
+    # dentro: x,y,largura,altura livres (aqui esticado para 100x50 num fundo de 200x100)
+    png, rect = place_layer(ov, (200, 100), [0.25, 0.5, 0.5, 0.5])
+    assert rect == (50, 50, 100, 50) and size(png) == (100, 50)
+    # passa da esquerda/cima: só a parte de dentro sobra, e a posição vira 0
+    png, rect = place_layer(ov, (200, 100), [-0.1, -0.2, 0.5, 0.8])
+    assert rect == (0, 0, 80, 60) and size(png) == (80, 60)
+    # passa da direita/baixo
+    png, rect = place_layer(ov, (200, 100), [0.8, 0.9, 0.5, 0.5])
+    assert rect == (160, 90, 40, 10)
+    # camada maior que o fundo: cobre tudo, sem estourar memória
+    png, rect = place_layer(ov, (200, 100), [-1.0, -1.0, 3.0, 3.0])
+    assert rect == (0, 0, 200, 100)
+    # quase toda fora: recusa
+    with pytest.raises(ValueError, match="fora da imagem"):
+        place_layer(ov, (200, 100), [0.98, 0.2, 0.5, 0.5])
+    with pytest.raises(ValueError):
+        place_layer(ov, (200, 100), [2.0, 0.2, 0.2, 0.2])
+
+
+def test_cutout_states_and_lenient_trim():
+    import io
+
+    from PIL import Image
+
+    from clefflow.storage import NoTransparency, cutout_state, trim_to_alpha
+    def enc(im):                                                        # noqa: E301
+        b = io.BytesIO()
+        im.save(b, format="PNG")
+        return b.getvalue()
+    ok = Image.new("RGBA", (20, 20), (0, 0, 0, 0))
+    ok.paste(Image.new("RGBA", (6, 4), (255, 0, 0, 255)), (5, 6))
+    ok.putpixel((0, 0), (0, 0, 0, 4))                                   # pó quase invisível some e não conta na caixa
+    empty, opaque, rgb = Image.new("RGBA", (8, 8), (0, 0, 0, 0)), Image.new("RGBA", (8, 8), (1, 2, 3, 255)), Image.new("RGB", (8, 8))
+    assert [cutout_state(enc(i)) for i in (ok, empty, opaque, rgb)] == ["ok", "empty", "opaque", "opaque"]
+    assert Image.open(io.BytesIO(trim_to_alpha(enc(ok)))).size == (6, 4)
+    for bad in (empty, opaque, rgb):
+        with pytest.raises(NoTransparency):
+            trim_to_alpha(enc(bad))
+        assert Image.open(io.BytesIO(trim_to_alpha(enc(bad), strict=False))).size == (8, 8)       # a tela de revisão decide

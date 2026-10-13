@@ -11,6 +11,12 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
+EXTRA_LORAS = ["qwen-image-2.1-outfit-swap.safetensors", "casual_snapshot_realism_qwen21.safetensors",
+               "Qwen2.1_viewpoint_orbit.safetensors", "qwen-image-2.1-restore.safetensors",
+               "qwen-image-2.1-outpaint-v2.safetensors"]
+# modelos que só aparecem DENTRO de subgraphs (o nó de fora guarda o valor): TripoSplat do fluxo 3D
+SUBGRAPH_FILES = {("VAELoader", "vae_name"): ["triposplat_vae_decoder_fp16.safetensors", "flux2-vae.safetensors"],
+                  ("UNETLoader", "unet_name"): ["triposplat_fp16.safetensors"]}
 FILE_EXT = (".safetensors", ".ckpt", ".pt", ".pth", ".gguf", ".bin", ".sft")
 
 
@@ -18,7 +24,11 @@ def main(src: str):
     oi = json.load(open(src, encoding="utf-8"))
     types: set[str] = set()
     used: dict[tuple[str, str], set] = {}
-    for f in glob.glob(str(ROOT / "defaults" / "workflows" / "*.json")):
+    import yaml
+    for e in (yaml.safe_load((ROOT / "defaults" / "loras.yaml").read_text(encoding="utf-8")) or {}).get("loras", []):
+        for t in ("LoraLoader", "LoraLoaderModelOnly"):          # LoRAs da biblioteca (entram na cadeia na hora de rodar)
+            used.setdefault((t, "lora_name"), set()).add(e["file"])
+    for f in glob.glob(str(ROOT / "defaults" / "workflows" / "*.json")) + glob.glob(str(ROOT / "tests" / "legacy" / "workflows" / "*.json")):
         wf = json.load(open(f, encoding="utf-8"))
         nodes = list(wf["nodes"])
         for sg in (wf.get("definitions") or {}).get("subgraphs", []):
@@ -47,7 +57,9 @@ def main(src: str):
             for name, spec in ((info.get("input") or {}).get(sec) or {}).items():
                 if not scrub(t, spec):
                     continue
-                keep = sorted(used.get((t, name), set())) or ["modelo.safetensors"]
+                keep = sorted(used.get((t, name), set()) | set(SUBGRAPH_FILES.get((t, name), []))) or ["modelo.safetensors"]
+                if t == "LoraLoader" and name == "lora_name":      # LoRAs da biblioteca que nenhum workflow cita
+                    keep += [x for x in EXTRA_LORAS if x not in keep]
                 if isinstance(spec[0], list):
                     spec[0] = keep
                 else:

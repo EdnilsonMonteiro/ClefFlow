@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="en" class="i18n-wait">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -17,6 +17,7 @@
     <nav class="nav" id="nav" aria-label="Seções">
       <button data-view="chat" class="on">Conversa</button>
       <button data-view="workflows">Workflows e prompts</button>
+      <button data-view="loras">LoRAs</button>
       <button data-view="recipes">Casos de uso</button>
       <button data-view="settings">Ajustes</button>
     </nav>
@@ -29,6 +30,9 @@
 </div>
 <div id="modal-root"></div>
 <div id="toast" role="status" aria-live="polite"></div>
+<!-- three.js + Spark (visualizador 3D): carregados só quando um 3D é aberto -->
+<script type="importmap">{"imports": {"three": "/static/vendor/three/three.module.min.js", "three/addons/": "/static/vendor/three/addons/", "spark": "/static/vendor/spark/spark.module.min.js"}}</script>
+<script src="/static/i18n.js"></script>
 <script src="/static/app.js"></script>
 </body>
 </html>

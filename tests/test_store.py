@@ -12,7 +12,7 @@ from clefflow.store import Store, StoreError
 
 def test_defaults_only_install_works_and_custom_starts_empty(project):
     s = Store(project)
-    assert len(s.manifests()) == 15 and all(m["source"] == "default" for m in s.manifests().values())
+    assert len(s.manifests()) == 13 and all(m["source"] == "default" for m in s.manifests().values())
     assert s.settings()["comfyui"]["url"].startswith("http://")
     assert not (project / "custom").exists() or not any((project / "custom").rglob("*.yaml"))
 
@@ -20,22 +20,42 @@ def test_defaults_only_install_works_and_custom_starts_empty(project):
 def test_custom_overrides_default_by_id_and_wins_for_files(project):
     s = Store(project)
     s.ensure_custom_dirs()
-    m = yaml.safe_load((project / "defaults" / "registry" / "edit_turbo.yaml").read_text(encoding="utf-8"))
-    m["title"] = "Meu Turbo"
+    m = yaml.safe_load((project / "defaults" / "registry" / "background_removal.yaml").read_text(encoding="utf-8"))
+    m["title"] = "Meu BG"
     m["file"] = "meu.json"
-    (project / "custom" / "registry" / "edit_turbo.yaml").write_text(yaml.dump(m), encoding="utf-8")
+    (project / "custom" / "registry" / "background_removal.yaml").write_text(yaml.dump(m), encoding="utf-8")
     (project / "custom" / "workflows" / "meu.json").write_text(json.dumps({"nodes": [], "links": []}), encoding="utf-8")
-    mf = s.manifest("edit_turbo")
-    assert mf["title"] == "Meu Turbo" and mf["source"] == "custom"
-    assert s.workflow_path("edit_turbo").name == "meu.json"
-    assert s.workflow_path("edit_quality").parent.name == "workflows" and s.workflow_path("edit_quality").parent.parent.name == "defaults"
+    mf = s.manifest("background_removal")
+    assert mf["title"] == "Meu BG" and mf["source"] == "custom"
+    assert s.workflow_path("background_removal").name == "meu.json"
+    assert s.workflow_path("replace_redbox").parent.name == "workflows" and s.workflow_path("replace_redbox").parent.parent.name == "defaults"
+
+
+def test_modes_pick_their_own_file_and_outputs(project):
+    s = Store(project)
+    m = s.manifest("edit")
+    assert m["mode"] == "turbo" and m["file"].endswith("Turbo.json") and [v[0] for v in s.variants("edit")] == ["turbo", "quality"]
+    q = s.manifest("edit", "quality")
+    assert q["file"].endswith("Qualidade.json") and "cfg" in q["knobs"] and "cfg" not in m["knobs"]
+    assert s.workflow_path("edit", "quality").name == "ClefFlow Editar - Qualidade.json"
+    with pytest.raises(StoreError):
+        s.manifest("edit", "nao_existe")
+    # o modo padrão não vaza para os outros (o t2i do modo quality não tem a cadeia de LoRAs do turbo)
+    assert s.manifest("t2i")["lora_chain"] and not s.manifest("t2i", "quality").get("lora_chain")
+    # um registro seu pode trocar o arquivo de um só modo
+    s.ensure_custom_dirs()
+    raw = yaml.safe_load((project / "defaults" / "registry" / "edit.yaml").read_text(encoding="utf-8"))
+    raw["modes"]["turbo"]["file"] = "meu.json"
+    (project / "custom" / "registry" / "edit.yaml").write_text(yaml.dump(raw), encoding="utf-8")
+    (project / "custom" / "workflows" / "meu.json").write_text("{}", encoding="utf-8")
+    assert s.workflow_path("edit", "turbo").name == "meu.json" and s.workflow_path("edit", "quality").parent.parent.name == "defaults"
 
 
 def test_workflow_file_cannot_escape_the_workflow_folders(project):
     s = Store(project)
     s.ensure_custom_dirs()
     (project / "secret.json").write_text("{}", encoding="utf-8")
-    m = yaml.safe_load((project / "defaults" / "registry" / "edit_turbo.yaml").read_text(encoding="utf-8"))
+    m = yaml.safe_load((project / "defaults" / "registry" / "background_removal.yaml").read_text(encoding="utf-8"))
     m.update(id="fuga", file="../../secret.json")
     (project / "custom" / "registry" / "fuga.yaml").write_text(yaml.dump(m), encoding="utf-8")
     with pytest.raises(StoreError):
@@ -44,37 +64,37 @@ def test_workflow_file_cannot_escape_the_workflow_folders(project):
 
 def test_saving_identical_to_default_leaves_no_custom_file(project):
     s = Store(project)
-    lib = s.prompts("edit_quality")
-    s.save_prompts("edit_quality", lib)
-    assert not s.prompts_customized("edit_quality")
+    lib = s.prompts("edit")
+    s.save_prompts("edit", lib)
+    assert not s.prompts_customized("edit")
     cfg = s.clef_config()
     s.save_clef_config(cfg)
     assert not (project / "custom" / "clef_prompt.yaml").exists()
-    cfg["workflows"]["edit_quality"]["description"] = "outra"
+    cfg["workflows"]["edit"]["description"] = "outra"
     s.save_clef_config(cfg)
     mine = yaml.safe_load((project / "custom" / "clef_prompt.yaml").read_text(encoding="utf-8"))
-    assert list(mine["workflows"]) == ["edit_quality"] and "instructions" not in mine
+    assert list(mine["workflows"]) == ["edit"] and "instructions" not in mine
 
 
 def test_new_defaults_reach_users_who_only_edited_other_workflows(project):
     s = Store(project)
     cfg = s.clef_config()
-    cfg["workflows"]["edit_quality"]["description"] = "minha"
+    cfg["workflows"]["edit"]["description"] = "minha"
     s.save_clef_config(cfg)
     base = yaml.safe_load((project / "defaults" / "clef_prompt.yaml").read_text(encoding="utf-8"))
-    base["workflows"]["edit_turbo"]["description"] = "descrição nova do repositório"
+    base["workflows"]["t2i"]["description"] = "descrição nova do repositório"
     (project / "defaults" / "clef_prompt.yaml").write_text(yaml.dump(base, allow_unicode=True), encoding="utf-8")
     now = s.clef_config()["workflows"]
-    assert now["edit_turbo"]["description"] == "descrição nova do repositório" and now["edit_quality"]["description"] == "minha"
+    assert now["t2i"]["description"] == "descrição nova do repositório" and now["edit"]["description"] == "minha"
 
 
 def test_recipe_with_disabled_workflow_is_hidden(project):
     s = Store(project)
-    assert [r["id"] for r in s.enabled_recipes()] == ["trocar_pessoa_e_fundo"]
+    assert [r["id"] for r in s.enabled_recipes()] == ["trocar_pessoa_e_fundo", "colar_e_fundir", "colar_sem_fundir", "pessoa_angulo", "pessoa_angulo_troca"]
     cfg = s.clef_config()
-    cfg["workflows"]["transfer_object_turbo"]["enabled"] = False
+    cfg["workflows"]["transfer_object"]["enabled"] = False
     s.save_clef_config(cfg)
-    assert s.enabled_recipes() == []
+    assert "trocar_pessoa_e_fundo" not in [r["id"] for r in s.enabled_recipes()]
 
 
 # -------------------------------------------------------------------- importer
@@ -92,8 +112,8 @@ def _copy_default_to_custom(project, name, dest=None):
 
 
 def test_importer_finds_unregistered_files_and_builds_a_working_draft(api, project):
-    _copy_default_to_custom(project, "Qwen2.1 Image Edit Quality.json", "Meu Edit.json")
-    _copy_default_to_custom(project, "Qwen2.1 Image Edit Quality.json", "NSFW/Outro.json")
+    _copy_default_to_custom(project, "ClefFlow Editar - Qualidade.json", "Meu Edit.json")
+    _copy_default_to_custom(project, "ClefFlow Editar - Qualidade.json", "NSFW/Outro.json")
     listing = api.get("/api/importable").json()
     assert {x["file"] for x in listing} == {"Meu Edit.json", "NSFW/Outro.json"}
     assert [x["nsfw"] for x in listing if x["file"].startswith("NSFW")] == [True]
@@ -114,10 +134,10 @@ def test_importer_finds_unregistered_files_and_builds_a_working_draft(api, proje
 
 
 def test_import_rejects_bad_input(api, project):
-    _copy_default_to_custom(project, "Qwen2.1 Image Edit Quality.json", "x.json")
+    _copy_default_to_custom(project, "ClefFlow Editar - Qualidade.json", "x.json")
     ok = {"file": "x.json", "id": "x1", "outputs": [25]}
     assert api.post("/api/import", json={**ok, "id": "Inválido"}).status_code == 422
-    assert api.post("/api/import", json={**ok, "id": "edit_quality"}).status_code == 422       # já existe
+    assert api.post("/api/import", json={**ok, "id": "edit"}).status_code == 422       # já existe
     assert api.post("/api/import", json={**ok, "file": "../defaults/clef_prompt.yaml"}).status_code == 422
     assert api.post("/api/import", json={**ok, "outputs": []}).status_code == 422
     assert api.get("/api/importable/draft", params={"file": "nao_existe.json"}).status_code == 422

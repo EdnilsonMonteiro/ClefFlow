@@ -1247,12 +1247,12 @@
         "Node name for S&R": "LoraLoader"
       },
       "widgets_values": [
-        "qwen-image-2.1-consistency-2000.safetensors",
+        "qwen-image-2.1-consistency.safetensors",
         0.5,
         0.5
       ],
       "widgets_values_named": {
-        "lora_name": "qwen-image-2.1-consistency-2000.safetensors",
+        "lora_name": "qwen-image-2.1-consistency.safetensors",
         "strength_model": 0.5,
         "strength_clip": 0.5
       }

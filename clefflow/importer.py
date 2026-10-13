@@ -103,7 +103,7 @@ def _image_order(wf: dict) -> dict[int, int]:
 
 def list_importable(store: Store) -> list[dict]:
     """.json em custom/workflows (inclusive subpastas) que ainda não estão no registro."""
-    used = {str(m.get("file")).replace("\\", "/") for m in store.manifests().values()}
+    used = {str(m.get("file")).replace("\\", "/") for m in store.manifests().values() if m.get("file")}
     base = store.custom_dir / "workflows"
     out = []
     if base.is_dir():

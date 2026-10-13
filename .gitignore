@@ -9,6 +9,19 @@
 /custom/*
 !/custom/README.md
 
+# addons/ guarda as extensões que você cria (código, workflows, telas). Também fica só na sua máquina.
+/addons/*
+!/addons/README.md
+
+# Chaves (ex.: HF_TOKEN do Hugging Face, chaves de API dos LLMs). Copie .env.example para .env e preencha.
+.env
+.env.*
+!.env.example
+
+# Claude Code: só a skill do projeto vai para o repositório; permissões e ajustes locais (settings.local.json) ficam de fora.
+/.claude/*
+!/.claude/skills/
+
 # Imagens enviadas, resultados e conversas
 /data/
 
@@ -23,6 +36,11 @@ __pycache__/
 .mypy_cache/
 .coverage
 htmlcov/
+
+# Pacotes e builds
+*.egg-info/
+dist/
+build/
 
 # Arquivos temporários e de backup
 *.tmp

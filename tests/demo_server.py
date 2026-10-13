@@ -2,6 +2,7 @@
 
     python tests/demo_server.py   ->  http://127.0.0.1:7861
 """
+import os
 import shutil
 import sys
 import tempfile
@@ -23,6 +24,9 @@ if __name__ == "__main__":
     for d in ("defaults", "web"):
         shutil.copytree(ROOT / d, tmp / d)
     (tmp / "data").mkdir()
+    if os.environ.get("DEMO_ADDON"):               # um addon criado a partir do modelo, para ver a interface dos addons
+        from clefflow.addons import new_addon
+        new_addon(tmp / "addons", "meu-addon", ROOT / "defaults" / "addon_template")
     import os
     if os.environ.get("DEMO_SEED_CUSTOM"):        # um workflow "seu" ainda não registrado, para ver o importador
         (tmp / "custom" / "workflows").mkdir(parents=True)
@@ -65,9 +69,44 @@ if __name__ == "__main__":
             e["url"] = f"http://127.0.0.1:{srv.server_address[1]}/{e['file']}"
         (tmp / "custom" / "models.yaml").write_text(yaml.dump({"files": cat}), encoding="utf-8")
     fake = FakeComfy(oi, delay=float(os.environ.get("DEMO_DELAY", "0")))
+    fake.view_rgba = bool(os.environ.get("DEMO_RGBA"))        # recortes com transparência, como o RMBG
+    if os.environ.get("DEMO_SPLAT"):               # um .spz de verdade para o passo 3D (o SaveGLB de mentira devolve este arquivo)
+        spz = Path(os.environ["DEMO_SPLAT"]).read_bytes()
+        for nid in ("51",):
+            fake.views[f"splat_{nid}.spz"] = spz
     settings["comfyui"]["url"] = "http://127.0.0.1:9" if os.environ.get("DEMO_NO_COMFY") else fake.url   # porta fechada
     if os.environ.get("DEMO_NO_COMFY"):
         settings["comfyui"].pop("path", None)
+    if os.environ.get("DEMO_AGENT"):                # agente ligado e um LLM de mentira que responde roteirizado
+        settings["agent"] = {"enabled": True, "confirm": True}
     Store(tmp).save_settings(settings)
     print("demo em http://127.0.0.1:7861  (dados em", tmp, ")", flush=True)
-    uvicorn.run(create_app(tmp), host="127.0.0.1", port=7861, log_level="warning")
+    app = create_app(tmp)
+    if os.environ.get("DEMO_AGENT"):
+        import json
+
+        class DemoLLM:
+            configured = True
+
+            async def chat(self, messages, **kw):
+                text = " ".join(m["content"] for m in messages if isinstance(m["content"], str))
+                if "CASOS DE USO A FUNDIR" in text:
+                    return json.dumps({"mergeable": True, "reason": "Os dois só diferem na ordem das imagens.",
+                                       "notes": "A ordem fixa virou dois papéis que o Clef reconhece.", "recipe": {
+                        "name": "Colar pessoa ou objeto no cenário", "images": 2,
+                        "description": "Duas imagens: um cenário e uma pessoa ou objeto, em qualquer ordem de envio. Recorta, posiciona e funde.",
+                        "roles": [{"key": "cenario", "label": "Cenário", "about": "O fundo.", "default": 1},
+                                  {"key": "sujeito", "label": "Pessoa ou objeto", "about": "O que será colado.", "default": 2}],
+                        "steps": [{"workflow": "colar_recortar", "inputs": {"image_1": "role:sujeito"}},
+                                  {"workflow": "colar_posicionar", "inputs": {"image_1": "role:cenario", "image_2": "previous"}},
+                                  {"workflow": "colar_fundir", "inputs": {"image_1": "previous"}}]}})
+                return json.dumps({"action": "finish", "recipe": {
+                    "name": "Melhorar e colorir a pessoa, depois colar", "images": 2,
+                    "description": "Duas imagens: um cenário e uma pessoa em foto antiga ou ruim que precisa ser colorida e melhorada antes de entrar no cenário.",
+                    "steps": [{"workflow": "edit", "prompt": "livre", "inputs": {"image_1": "user:2"},
+                               "request": "Colorize this photo and improve its quality; keep the person identical."},
+                              {"workflow": "colar_recortar", "inputs": {"image_1": "previous"}},
+                              {"workflow": "colar_posicionar", "inputs": {"image_1": "user:1", "image_2": "previous"}},
+                              {"workflow": "colar_fundir", "inputs": {"image_1": "previous"}}]}})
+        app.state.pipe.llm = DemoLLM()
+    uvicorn.run(app, host="127.0.0.1", port=7861, log_level="warning")

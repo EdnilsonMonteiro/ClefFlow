@@ -18,6 +18,9 @@ params:
   type: box
   image: image_1
   label: Lugar do objeto (quadrado vermelho)
+  multiple: true
+  hint: Pode desenhar vários quadrados, mas só para objetos IGUAIS (o mesmo pedido vale para todos). Para objetos diferentes, faça uma edição de cada vez.
+  multi_prompt: There are {n} red squares in the image. Apply the instruction above to EACH of the {n} red squares, one separate and identical result per square, and remove every red square completely.
   color: red
   node: 6
   widgets:

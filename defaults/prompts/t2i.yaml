@@ -4,6 +4,6 @@ default: livre
 presets:
 - id: livre
   name: Pedido do usuário
-  when: Descrição da imagem a criar.
+  when: Description of the image to create.
   text: '{request}'
   rewrite: true

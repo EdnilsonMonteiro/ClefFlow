@@ -964,7 +964,22 @@
     "Recorta a pessoa ou o objeto antes de gerar o 3D (mudar o ângulo da pessoa).": "Cuts out the person or object before generating the 3D (changing the person's angle).",
     "Usar o render com o cinza": "Use the render with the gray",
     "Completar o cinza (Outpaint)": "Fill in the gray (Outpaint)",
-    "Gire a câmera até o ângulo que você quer. \"Completar o cinza (Outpaint)\" manda o render deste ângulo para o Editar com a LoRA de Outpaint, que preenche o cinza (o que a foto não mostrava) continuando o ambiente; \"Usar o render com o cinza\" entrega o render como está.": "Turn the camera to the angle you want. \"Fill in the gray (Outpaint)\" sends the render of this angle to Edit with the Outpaint LoRA, which fills the gray (what the photo didn't show) by continuing the scene; \"Use the render with the gray\" gives you the render as it is."
+    "Gire a câmera até o ângulo que você quer. \"Completar o cinza (Outpaint)\" manda o render deste ângulo para o Editar com a LoRA de Outpaint, que preenche o cinza (o que a foto não mostrava) continuando o ambiente; \"Usar o render com o cinza\" entrega o render como está.": "Turn the camera to the angle you want. \"Fill in the gray (Outpaint)\" sends the render of this angle to Edit with the Outpaint LoRA, which fills the gray (what the photo didn't show) by continuing the scene; \"Use the render with the gray\" gives you the render as it is.",
+    "Esquerda (%)": "Left (%)",
+    "Direita (%)": "Right (%)",
+    "Cima (%)": "Top (%)",
+    "Baixo (%)": "Bottom (%)",
+    "Acima de 4 MP o ComfyUI fica bem mais lento.": "Above 4 MP ComfyUI gets much slower.",
+    "Arraste para acrescentar cinza deste lado": "Drag to add gray on this side",
+    "Ampliar a imagem (outpaint)": "Extend the image (outpaint)",
+    "Arraste as bordas ou digite quanto acrescentar em cada lado. O cinza é o que a LoRA de Outpaint vai completar com a continuação da cena; a foto original fica idêntica.": "Drag the edges or type how much to add on each side. The gray is what the Outpaint LoRA will fill in with a continuation of the scene; the original photo stays identical.",
+    "Proporção:": "Aspect ratio:",
+    "Acrescentar:": "Add:",
+    "+10% em volta": "+10% all around",
+    "+25% em volta": "+25% all around",
+    "Completar com Outpaint": "Fill in with Outpaint",
+    "Escolher na tela": "Choose on screen",
+    "Zerar": "Reset"
   },
   "templates": {
     "Erro {}": "Error {}",
@@ -1171,6 +1186,7 @@
     "{} #{}: '{}' vem do nó {}, que não está no grafo.": "{} #{}: '{}' comes from node {}, which isn't in the graph.",
     "{} #{}: '{}' usa a saída {} de {}, que só tem {}.": "{} #{}: '{}' uses output {} of {}, which only has {}.",
     "{} #{}: '{}'={} fora do limite ({}..{}).": "{} #{}: '{}'={} out of range ({}..{}).",
-    "Executou: {}": "Ran: {}"
+    "Executou: {}": "Ran: {}",
+    "Tamanho final: {}×{} px ({} MP)": "Final size: {}×{} px ({} MP)"
   }
 }

@@ -155,6 +155,9 @@ def test_expand_preset_pads_the_photo_and_pastes_it_back(api, monkeypatch):
     monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "sides"}))
     a = upload(api, "praia.png", png((0, 90, 200), (128, 96)))
     _cid, rid = start(api, "aumente a foto para os lados", [a["id"]], route="edit@turbo")
+    ev = wait_event(api, rid, lambda e: e["type"] == "needs_input" and e.get("kind") == "outpaint")
+    assert ev["size"] == [128, 96] and ev["expand"] == {"left": 0.25, "right": 0.25}      # a sugestão do Clef vem pré-preenchida
+    answer(api, rid, ev, {"left": 0.25, "right": 0.25})                                    # a pessoa confirma
     done = wait_event(api, rid, lambda e: e["type"] in ("done", "error"))
     assert done["type"] == "done", done
     g = graphs(api)[-1]
@@ -243,3 +246,27 @@ def test_gray_fraction_measures_the_leftover_outpaint_gray():
     assert abs(gray_fraction(buf.getvalue()) - 0.5) < 0.02
     buf2 = io.BytesIO(); Image.new("RGB", (64, 64), (10, 200, 30)).save(buf2, "PNG")
     assert gray_fraction(buf2.getvalue()) == 0
+
+
+def test_outpaint_screen_lets_you_pick_the_gray_yourself(api, monkeypatch):
+    # opção "Escolher na tela": sem sugestão do Clef, a pessoa acrescenta o cinza (aqui só em cima e embaixo)
+    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "choose"}))
+    a = upload(api, "praia.png", png((0, 90, 200), (128, 96)))
+    _cid, rid = start(api, "só outpaint", [a["id"]], route="edit@turbo")
+    ev = wait_event(api, rid, lambda e: e["type"] == "needs_input" and e.get("kind") == "outpaint")
+    assert ev["expand"] == {}
+    answer(api, rid, ev, {"top": 0.5, "bottom": 0.5, "left": 0})
+    assert wait_event(api, rid, lambda e: e["type"] in ("done", "error"))["type"] == "done"
+    g = graphs(api)[-1]
+    sent = Image.open(io.BytesIO(api.fake.uploads[g["26"]["inputs"]["image"].split("/")[-1]]))
+    assert sent.size == (128, 192) and sent.getpixel((64, 4))[:3] == (128, 128, 128) and sent.getpixel((64, 96))[:3] == (0, 90, 200)
+
+
+def test_outpaint_screen_cancel_ends_the_run(api, monkeypatch):
+    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "sides"}))
+    a = upload(api, "praia.png", png((0, 90, 200), (128, 96)))
+    _cid, rid = start(api, "aumente", [a["id"]], route="edit@turbo")
+    ev = wait_event(api, rid, lambda e: e["type"] == "needs_input" and e.get("kind") == "outpaint")
+    answer(api, rid, ev, None)
+    assert wait_event(api, rid, lambda e: e["type"] in ("done", "error", "cancelled", "end") or e["type"] == "status" and "ancel" in e.get("text", ""), ) is not None
+    assert not graphs(api)                                                                 # nada foi para o ComfyUI

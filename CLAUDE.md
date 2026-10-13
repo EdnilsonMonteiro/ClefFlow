@@ -20,7 +20,7 @@ Usuário → ClefFlow (porta 7860) → Clef (decide)      [clef.py, router.py]
                                → LLM opcional (redator de prompt, agente, fusão)   [addons.LLM, writer.py]
 ```
 
-Rodar: `start.bat` / `start.sh` (ou `python -m clefflow`). Testes: `python -m pytest -q` (**363 passam**; ~4 min).
+Rodar: `start.bat` / `start.sh` (ou `python -m clefflow`). Testes: `python -m pytest -q` (**365 passam**; ~4 min).
 CLI extra: `python -m clefflow addon new <nome>`.
 
 ## 2. Regras duras (não quebre)
@@ -187,7 +187,11 @@ Ler `textContent` de volta devolve o texto JÁ traduzido: não compare com texto
   O `splat.js` navega como o Blender, sem OrbitControls: modo `nav` (pivô, botão do meio gira, Shift arrasta, Ctrl/roda
   zoom na direção do mouse, duplo clique escolhe o pivô por raycast no splat, teclado numérico/fileira de números) e
   `walk` (W A S D seguradas, Shift+` alterna); `setFov`; a interface chama `nudge(...)`.
-- **Outpaint**: LoRA `outpaint` (auto) e prompt `expandir` no `edit` (variável `expand`).
+- **Outpaint**: LoRA `outpaint` (auto) e prompt `expandir` no `edit` (variável `expand`: lados, tudo, cima/baixo, `choose` = escolher
+  na tela, `gray` = só completar o cinza que a imagem já tem). Com `expand_edit: true` no prompt, qualquer opção que aumenta a tela
+  (ou `choose`, `ask_expand`) abre antes a tela "Ampliar a imagem" (`needs_input` kind `outpaint`, `outpaintModal`): a foto sobre o
+  cinza, bordas arrastáveis, campos em %, proporções prontas, tamanho final e aviso acima de 4 MP; a sugestão do Clef vem
+  pré-preenchida e cancelar encerra a execução. `gray` e a repassada de `_verify_gray` nunca abrem a tela.
 - **Fusão que completa o corpo**: `colar_fundir`/`pessoa` tem a variável `corpo` (`inteiro` | `completar`); o Clef olha a
   colagem (a última imagem do `bind`) e o pedido. `completar` leva `{request}` (pose e ação) e manda desenhar o que falta.
 - **Fusão e LoRAs fixas**: o arquivo do `colar_fundir` tem pysj666 (nó 11) e Consistency (nó 13) fixas; `knobs` (`consistency` com

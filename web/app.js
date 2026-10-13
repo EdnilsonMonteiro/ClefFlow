@@ -507,6 +507,7 @@ async function openInput(ev) {
   try {
     if (ev.kind === 'draw') value = await drawModal(ev);
     else if (ev.kind === 'angle') value = await angleModal(ev);
+    else if (ev.kind === 'outpaint') value = await outpaintModal(ev);
     else if (ev.kind === 'cutout') value = await cutoutModal(ev);
     else if (ev.kind === 'agent_recipe') value = await agentRecipeModal(ev);
     else if (ev.kind === 'splat') value = await splatModal(ev);
@@ -681,6 +682,81 @@ function angleModal(ev) {
     upd();
   });
 }
+// Outpaint: a foto no meio de uma tela cinza (#808080) que a LoRA de Outpaint completa. A pessoa arrasta as bordas ou digita
+// quanto acrescentar em cada lado (em % do lado da foto), ou usa uma proporção pronta. Devolve {left, right, top, bottom}.
+function outpaintModal(ev) {
+  return new Promise((resolve) => {
+    const [W, H] = ev.size, SIDES = ['left', 'right', 'top', 'bottom'];
+    const LABEL = { left: 'Esquerda (%)', right: 'Direita (%)', top: 'Cima (%)', bottom: 'Baixo (%)' };
+    const m = { left: 0, right: 0, top: 0, bottom: 0, ...(ev.expand || {}) };
+    const clamp = (v) => Math.max(0, Math.min(1, Math.round(v * 100) / 100));
+    SIDES.forEach((k) => { m[k] = clamp(m[k]); });
+    const up32 = (n) => Math.ceil(n / 32) * 32;
+    const img = h('img', { src: ev.image_url, alt: '', draggable: 'false' });
+    const stage = h('div', { class: 'op-stage' }, img);
+    const info = h('div', { class: 'sm' });
+    const fields = {};
+    let s = 1, close;
+    const fit = () => Math.min(1, Math.min(560, innerWidth - 140) / (W * (1 + m.left + m.right)),
+      Math.max(200, innerHeight * 0.48) / (H * (1 + m.top + m.bottom)));
+    function layout(syncFields = true) {
+      stage.style.width = W * (1 + m.left + m.right) * s + 'px';
+      stage.style.height = H * (1 + m.top + m.bottom) * s + 'px';
+      Object.assign(img.style, { left: W * m.left * s + 'px', top: H * m.top * s + 'px', width: W * s + 'px', height: H * s + 'px' });
+      if (syncFields) SIDES.forEach((k) => { fields[k].value = String(Math.round(m[k] * 100)); });
+      const cw = up32(W * (1 + m.left + m.right)), ch = up32(H * (1 + m.top + m.bottom)), mp = (cw * ch) / 1e6;
+      info.className = 'sm ' + (mp > 4 ? 'badc' : 'muted');
+      info.textContent = tr('Tamanho final: {}×{} px ({} MP)').replace('{}', cw).replace('{}', ch).replace('{}', mp.toFixed(1))
+        + (mp > 4 ? ' ' + tr('Acima de 4 MP o ComfyUI fica bem mais lento.') : '');
+    }
+    const refit = () => { s = fit(); layout(); };
+    SIDES.forEach((k) => {
+      const horiz = k === 'left' || k === 'right';
+      const grip = h('div', { class: 'op-grip ' + k, title: 'Arraste para acrescentar cinza deste lado', role: 'presentation' });
+      grip.addEventListener('pointerdown', (e) => {
+        e.preventDefault(); grip.setPointerCapture(e.pointerId);
+        const x0 = e.clientX, y0 = e.clientY, v0 = m[k], s0 = s;
+        const mv = (e2) => {
+          const d = horiz ? (k === 'left' ? x0 - e2.clientX : e2.clientX - x0) : (k === 'top' ? y0 - e2.clientY : e2.clientY - y0);
+          m[k] = clamp(v0 + d / ((horiz ? W : H) * s0));
+          layout();
+        };
+        const end = () => { grip.removeEventListener('pointermove', mv); grip.removeEventListener('pointerup', end); grip.removeEventListener('pointercancel', end); refit(); };
+        grip.addEventListener('pointermove', mv); grip.addEventListener('pointerup', end); grip.addEventListener('pointercancel', end);
+      });
+      stage.append(grip);
+      fields[k] = h('input', { type: 'number', min: 0, max: 100, step: 5, 'aria-label': LABEL[k],
+        oninput: (e) => { m[k] = clamp(Number(e.target.value || 0) / 100); s = fit(); layout(false); } });
+    });
+    // proporção pronta: acrescenta o cinza necessário, dividido igualmente nos dois lados
+    const ratio = (r) => {
+      const ew = W * (1 + m.left + m.right), eh = H * (1 + m.top + m.bottom);
+      if (ew / eh < r) { const x = (eh * r - ew) / 2 / W; m.left = clamp(m.left + x); m.right = clamp(m.right + x); }
+      else { const y = (ew / r - eh) / 2 / H; m.top = clamp(m.top + y); m.bottom = clamp(m.bottom + y); }
+      refit();
+    };
+    const add = (f) => { SIDES.forEach((k) => { m[k] = clamp(m[k] + f); }); refit(); };
+    const chip = (label, fn) => h('button', { class: 'chip', type: 'button', onclick: fn }, label);
+    const side = (k) => h('label', { class: 'op-field' }, h('span', { class: 'sm' }, LABEL[k]), fields[k]);
+    const ok = () => { close(); resolve({ left: m.left, right: m.right, top: m.top, bottom: m.bottom }); };
+    const cancel = () => { close(); resolve(null); };
+    close = openModal(h('div', { class: 'modal wide' },
+      h('header', null, h('h2', null, ev.title || 'Ampliar a imagem (outpaint)'),
+        h('p', null, 'Arraste as bordas ou digite quanto acrescentar em cada lado. O cinza é o que a LoRA de Outpaint vai completar com a continuação da cena; a foto original fica idêntica.')),
+      h('div', { class: 'body stack' }, h('div', { class: 'op-wrap' }, stage),
+        h('div', { class: 'op-fields' }, SIDES.map(side)),
+        h('div', { class: 'chips' }, h('span', { class: 'sm muted' }, 'Acrescentar:'),
+          chip('+10% em volta', () => add(0.1)), chip('+25% em volta', () => add(0.25)),
+          h('span', { class: 'sm muted' }, 'Proporção:'),
+          [['1:1', 1], ['4:3', 4 / 3], ['3:2', 3 / 2], ['16:9', 16 / 9], ['9:16', 9 / 16]].map(([t, r]) => chip(t, () => ratio(r)))),
+        info),
+      h('footer', null, h('button', { class: 'btn secondary', onclick: cancel }, 'Cancelar execução'), h('span', { class: 'grow' }),
+        h('button', { class: 'btn secondary', onclick: () => { SIDES.forEach((k) => { m[k] = 0; }); refit(); } }, 'Zerar'),
+        h('button', { class: 'btn', onclick: ok }, 'Completar com Outpaint'))), cancel);
+    refit();
+  });
+}
+
 // ------------------------------------------------------------- 3D (Gaussian Splat)
 // O visualizador (web/splat.js: three.js + Spark) só é carregado quando um 3D é aberto.
 let splatMod = null;

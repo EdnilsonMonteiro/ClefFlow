@@ -224,6 +224,8 @@ def render(preset: dict, choices: dict[str, Any]) -> dict:
                     out["writer_note"] = str(o["note"])
                 if o.get("expand"):
                     out["expand"] = dict(o["expand"])
+                if o.get("ask_expand"):                 # sem margem sugerida: a pessoa define tudo na tela
+                    out["expand_ask"] = True
             else:
                 tokens[v["key"]] = ""
         elif k == "angle":

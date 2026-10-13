@@ -28,7 +28,7 @@ from .cutout import merge_person_cutouts
 from .storage import (ConvStore, ImageStore, NoTransparency, crop_fraction, cut_edges, cutout_state, flatten_alpha, mask_to_alpha_png,
                       to_png, trim_to_alpha)
 from .addons import ActionCall, AddonManager, LLM
-from .compose import (burn_boxes, clamp_frac, fit_megapixels, gray_fraction, pad_gray, paste_back, place_layers,
+from .compose import (burn_boxes, clamp_frac, expand_spec, fit_megapixels, gray_fraction, pad_gray, paste_back, place_layers,
                       region_change)
 from .splats import SplatStore, splat_key, view as splat_view
 from .store import Store, StoreError
@@ -571,6 +571,8 @@ class Pipeline:
                 await run.emit({"type": "status", "text": "Esta foto já tinha um 3D gerado: uso o mesmo (sem rodar o TripoSplat)."})
                 return await self._splat_choose(run, idx, step, m, splat_src, cached)
         expand = preset.get("expand") or None
+        if preset.get("expand_edit") and (expand or preset.get("expand_ask")):
+            expand = await self._ask_expand(run, m, binding, by_key, sources, expand) or None
         expanded: tuple | None = None                           # (original, caixa da foto na tela, tamanho da tela)
         placed: dict[str, tuple[bytes, tuple[int, int, int, int]]] = {}
         for p in m.get("params", []):                          # camada(s) posicionada(s) na tela: já no tamanho, giradas e cortadas no fundo
@@ -763,6 +765,20 @@ class Pipeline:
         bind2 = Binding(fix.get("prompt") or self.store.prompts(wf)["default"], {"image_1": "previous"}, [], mode, [], {})
         return await self._run_step(run, idx, step2, known[wf], bind2, sources, self._step_ctx(ctx, step2), settings,
                                     forced={"red": [{"b": box, "ref": None}]})
+
+    async def _ask_expand(self, run: Run, m: dict, binding: Binding, by_key: dict[str, Source], sources: list[Source],
+                          suggested: dict | None) -> dict:
+        """Outpaint: mostra a foto e deixa a pessoa acrescentar o cinza em cada lado (fração do lado da foto), partindo da
+        sugestão do Clef. Devolve `{left, right, top, bottom}`; cancelar encerra a execução."""
+        src = self._first_source(m, binding, sources)
+        if src is None:
+            return suggested or {}
+        w, h = Image.open(io.BytesIO(src.data)).size
+        value = await self.ask_user(run, {"kind": "outpaint", "title": "Ampliar a imagem (outpaint)", "image_url": src.url,
+                                          "size": [w, h], "expand": expand_spec(suggested or {})})
+        if not isinstance(value, dict):
+            raise RunCancelled()
+        return expand_spec(value)
 
     async def _verify_gray(self, run: Run, idx: int, step: Step, binding: Binding, ctx: Ctx, settings: dict, m: dict,
                            v: dict, results: list[dict]) -> list[dict] | None:

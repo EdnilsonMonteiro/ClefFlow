@@ -250,6 +250,9 @@ presets:
     resolution: 0
   rewrite: false
   auto_loras: false
+  # expand_edit: antes de gerar, abre a tela "Ampliar a imagem" (needs_input kind `outpaint`) com a margem que o Clef
+  # sugeriu (ou zerada, na opção `choose`); a pessoa ajusta cada lado e o ClefFlow acrescenta o cinza #808080 que a LoRA completa.
+  expand_edit: true
   # sobrou cinza (#808080) em mais de 2% da imagem: roda de novo sobre o resultado, até 2 vezes (a semente muda muito
   # o quanto a LoRA completa: no ComfyUI real, o mesmo render de quarto saiu com 0,3% ou 19% de cinza)
   verify:
@@ -266,6 +269,11 @@ presets:
     question: Where should the photo grow? If the image already has gray areas to fill and the request does not talk 
       about enlarging it, choose only filling the gray.
     options:
+    - id: choose
+      name: Escolher na tela
+      when: The user wants to choose the area to extend themselves, or only says outpaint without saying where or how much.
+      text: ''
+      ask_expand: true
     - id: gray
       name: Só completar o cinza
       when: The image already has solid gray areas (holes, gray borders of a 3D render) and the request is to fill them,

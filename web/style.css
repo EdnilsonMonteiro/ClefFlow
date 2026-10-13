@@ -426,3 +426,16 @@ svg.orbit .cap { font-size: 9px; fill: var(--muted); }
 .llm-model { align-items: center; margin: 4px 0; }
 .grow2 { flex: 2 1 0; min-width: 220px; }
 .okc { color: #12A150; } .badc { color: var(--danger, #E5392F); }
+
+/* Outpaint: a foto no meio de uma tela cinza; as bordas se arrastam para acrescentar cinza */
+.op-wrap { display: flex; justify-content: center; min-height: 120px; }
+.op-stage { position: relative; background: #808080; outline: 1px solid var(--line-strong); touch-action: none; user-select: none; flex: none; }
+.op-stage img { position: absolute; display: block; pointer-events: none; }
+.op-grip { position: absolute; background: rgba(255,255,255,.45); border: 1px solid rgba(255,255,255,.9); box-sizing: border-box; z-index: 2; }
+.op-grip:hover, .op-grip:active { background: rgba(255,255,255,.8); }
+.op-grip.left, .op-grip.right { top: 0; width: 12px; height: 100%; cursor: ew-resize; }
+.op-grip.left { left: 0; } .op-grip.right { right: 0; }
+.op-grip.top, .op-grip.bottom { left: 0; height: 12px; width: 100%; cursor: ns-resize; }
+.op-grip.top { top: 0; } .op-grip.bottom { bottom: 0; }
+.op-fields { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.op-field { display: flex; flex-direction: column; gap: 2px; width: 92px; }

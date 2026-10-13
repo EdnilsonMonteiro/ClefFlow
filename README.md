@@ -302,6 +302,14 @@ várias pessoas. Com
 `slots: order` as imagens entram nas entradas na ordem em que foram enviadas. As variáveis são editadas no cartão do
 prompt, em *Workflows e prompts*.
 
+### Outpaint: acrescentar cinza e completar
+
+Pedidos de só expandir ou completar a imagem ("aumente para os lados", "outpaint") usam o prompt *Expandir ou completar áreas
+cinza*. Antes de gerar, abre a tela **Ampliar a imagem**: a foto aparece sobre o cinza (#808080) e você arrasta as bordas, digita a
+porcentagem de cada lado ou escolhe uma proporção (1:1, 4:3, 3:2, 16:9, 9:16). O que o Clef entendeu do pedido já vem preenchido, e a
+opção *Escolher na tela* começa zerada. A LoRA de Outpaint completa só o cinza; a foto original volta idêntica. Se a imagem já
+tem cinza para completar (um render 3D), a tela não abre.
+
 ### Meu ou oficial? Onde cada coisa vai
 
 Tudo que você cria ou edita **pela interface** (casos de uso, LoRAs, prompts, descrições, ajustes, casos do agente, workflows

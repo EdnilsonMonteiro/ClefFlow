@@ -32,7 +32,7 @@ ID_RE = re.compile(r"^[a-z0-9][a-z0-9_]{0,60}$")
 
 DEFAULT_SETTINGS: dict[str, Any] = {
     "server": {"host": "127.0.0.1", "port": 7860},
-    "comfyui": {"url": "http://127.0.0.1:8188", "upload_subfolder": "clefflow", "timeout_s": 1800,
+    "comfyui": {"url": "http://127.0.0.1:8188", "upload_subfolder": "pickflow", "timeout_s": 1800,
                 "free_vram_before_clef": False, "free_vram_after_run": False, "path": "",
                 "max_input_mp": 2.0},
     "setup": {"dismissed": False},
@@ -245,7 +245,7 @@ class Store:
     def save_settings(self, patch: dict) -> dict:
         new = deep_merge(self.settings(), patch)
         atomic_write(self.settings_path,
-                     dump_yaml(new, "# Configurações do ClefFlow (também editáveis na interface)."))
+                     dump_yaml(new, "# Configurações do PickFlow (também editáveis na interface)."))
         return new
 
     # ----------------------------------------------------------- manifests
@@ -543,7 +543,7 @@ class Store:
             self.generated_path.unlink(missing_ok=True)
             return
         atomic_write(self.generated_path, dump_yaml(
-            {"recipes": recipes}, "# Casos de uso criados pelo agente (ClefFlow). Pode editar na interface (Casos de uso).\n"
+            {"recipes": recipes}, "# Casos de uso criados pelo agente (PickFlow). Pode editar na interface (Casos de uso).\n"
                                   "# status: trial = em teste (o mais antigo sai quando passa do limite); kept = mantido."))
 
     def _save_generated(self, rec: dict):

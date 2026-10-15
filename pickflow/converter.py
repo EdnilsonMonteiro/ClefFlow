@@ -34,7 +34,7 @@ def node_id(x: Any) -> Any:
     return int(x) if isinstance(x, int) or str(x).isdigit() else str(x)
 
 
-CLEFFLOW_NODES = {"DrawBox", "MoveBoxes", "DrawMoveBoxes", "ViggleTurboLora", "ViggleTurboSigmas"}
+PICKFLOW_NODES = {"DrawBox", "MoveBoxes", "DrawMoveBoxes", "ViggleTurboLora", "ViggleTurboSigmas"}
 
 
 class ConversionError(Exception):
@@ -238,8 +238,8 @@ class Converter:
         if missing:
             names = sorted(set(missing))
             hint = ""
-            if any(m in CLEFFLOW_NODES for m in names):
-                hint = (" — alguns deles vêm com o ClefFlow (pasta comfyui_nodes/): rode install_nodes.bat "
+            if any(m in PICKFLOW_NODES for m in names):
+                hint = (" — alguns deles vêm com o PickFlow (pasta comfyui_nodes/): rode install_nodes.bat "
                         "(ou ./install_nodes.sh) e reinicie o ComfyUI.")
             raise ConversionError("Nós não instalados no ComfyUI: " + ", ".join(names) + hint)
         self._finish(api, drop_nodes, loader_fallback, keep_loaders)

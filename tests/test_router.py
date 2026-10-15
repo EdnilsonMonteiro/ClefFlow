@@ -2,9 +2,9 @@ import asyncio
 
 import pytest
 
-from clefflow.clef import Answer, MockClef, normalize_answer
-from clefflow.router import Ctx, ImageRef, Router, Source, Step
-from clefflow.store import Store
+from pickflow.clef import Answer, MockClef, normalize_answer
+from pickflow.router import Ctx, ImageRef, Router, Source, Step
+from pickflow.store import Store
 
 
 def img(i):
@@ -414,17 +414,17 @@ def test_clef_picks_person_or_object_cutout_from_the_request(project):
     assert (per.mode, obj.mode, alone.mode) == ("pessoa", "objeto", "fundo")       # a opção escolhida diz o modo
     assert obj.vars == {"alvo": "chair", "cor": "blue"}
     store = Store(project)
-    from clefflow import pvars
+    from pickflow import pvars
     preset = store.prompts("colar_recortar")["presets"][0]
     assert pvars.render(preset, obj.vars)["text"] == "blue chair"                  # o que o SAM3 procura
     assert store.manifest("colar_recortar", "pessoa")["prompt"]["node"] == 4 and store.manifest("colar_recortar", "objeto")["prompt"]["node"] == 4
-    assert store.manifest("colar_recortar", "objeto")["file"] == "ClefFlow Colar - Recortar Pessoa.json"
-    assert store.manifest("colar_recortar", "fundo")["file"] == "ClefFlow Colar - Recortar.json" and not store.manifest("colar_recortar", "fundo").get("prompt")
+    assert store.manifest("colar_recortar", "objeto")["file"] == "PickFlow Colar - Recortar Pessoa.json"
+    assert store.manifest("colar_recortar", "fundo")["file"] == "PickFlow Colar - Recortar.json" and not store.manifest("colar_recortar", "fundo").get("prompt")
     assert store.manifest("colar_recortar", "pessoa")["review"] == "cutout"
 
 
 def test_internal_steps_are_not_in_the_forced_route_list(project):
-    from clefflow.app import create_app  # noqa: F401  (a lista é feita pela interface a partir do campo internal)
+    from pickflow.app import create_app  # noqa: F401  (a lista é feita pela interface a partir do campo internal)
     s = Store(project)
     assert s.manifest("colar_recortar")["internal"] and s.manifest("colar_posicionar")["internal"]
 
@@ -548,6 +548,20 @@ def test_hold_intent_goes_to_transfer_and_other_edits_keep_their_route(project):
     st = Stub({"route": "edit", "then": "none", "paste_intent": "outra"})
     plan = run(Router(Store(project), st).plan(Ctx("troque o rosto dele pelo da imagem 2", [img(1), img(2)])))
     assert [s.workflow for s in plan.steps] == ["edit"]
+
+
+def test_person_swap_intent_keeps_or_moves_the_route_to_the_editor_and_the_next_step_never_repeats_the_asked_route(project):
+    # "replace the woman in image 1 with the man in image 2, face and body": o editor (prompt Trocar pessoas), não o transferir objeto
+    st = Stub({"route": "edit", "then": "none", "paste_intent": "trocar"})
+    plan = run(Router(Store(project), st).plan(Ctx("replace the woman in image 1 with the man in image 2, face and body", [img(1), img(2)])))
+    assert [s.workflow for s in plan.steps] == ["edit"]
+    st = Stub({"route": "transfer_object", "then": "none", "paste_intent": "trocar"})
+    plan = run(Router(Store(project), st).plan(Ctx("body swap the woman with the man", [img(1), img(2)])))
+    assert [s.workflow for s in plan.steps] == ["edit"]
+    # o `then` é respondido antes de a rota mudar pela intenção: se ele pede a rota de que partiu, não vira um 2º passo igual
+    st = Stub({"route": "edit", "then": "edit", "paste_intent": "substituir"})
+    plan = run(Router(Store(project), st).plan(Ctx("put the man in place of the woman", [img(1), img(2)])))
+    assert [s.workflow for s in plan.steps] == ["transfer_object"]
 
 
 def test_the_intent_question_is_only_asked_with_two_images_and_a_paste_like_route(project):

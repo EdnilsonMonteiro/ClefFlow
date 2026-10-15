@@ -1,4 +1,4 @@
-"""Montagens de imagem feitas pelo ClefFlow antes de mandar ao ComfyUI (só Pillow).
+"""Montagens de imagem feitas pelo PickFlow antes de mandar ao ComfyUI (só Pillow).
 
   burn_boxes   desenha caixas coloridas (e o número de cada uma) na imagem: é como vários quadrados vermelhos
                ou várias caixas verdes chegam ao modelo, sem precisar de um nó do ComfyUI por caixa
@@ -214,6 +214,20 @@ def paste_back(result: bytes, original: bytes, box: tuple[int, int, int, int], c
     region = out.crop((x, y, x + w, y + h))
     region.paste(orig, (0, 0), mask)
     out.paste(region, (x, y))
+    buf = io.BytesIO()
+    out.save(buf, format="PNG")
+    return buf.getvalue()
+
+
+def blend_masked(original: bytes, result: bytes, mask: Image.Image) -> bytes:
+    """`result` onde a máscara é branca, a `original` onde é preta (com a transição suave da própria máscara). O resultado é levado ao
+    tamanho da original se o modelo devolveu outro. Usado em "Mudar a pose": só o que mexeu vem do modelo, o resto é a foto de verdade."""
+    base = Image.open(io.BytesIO(original)).convert("RGB")
+    res = Image.open(io.BytesIO(result)).convert("RGB")
+    if res.size != base.size:
+        res = res.resize(base.size, Image.LANCZOS)
+    m = mask if mask.size == base.size else mask.resize(base.size, Image.BILINEAR)
+    out = Image.composite(res, base, m)
     buf = io.BytesIO()
     out.save(buf, format="PNG")
     return buf.getvalue()

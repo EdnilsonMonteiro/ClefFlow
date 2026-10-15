@@ -1,5 +1,5 @@
 """Redator de prompt opcional: um LLM (qualquer provedor compatível com a API de chat da OpenAI, veja llm.py) reescreve o
-pedido ou ajusta o prompt montado. Desligado por padrão. Se falhar, o ClefFlow segue com o texto sem LLM e avisa o motivo."""
+pedido ou ajusta o prompt montado. Desligado por padrão. Se falhar, o PickFlow segue com o texto sem LLM e avisa o motivo."""
 from __future__ import annotations
 
 import base64

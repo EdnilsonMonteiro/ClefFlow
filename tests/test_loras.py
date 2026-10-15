@@ -2,11 +2,11 @@
 import pytest
 from fastapi.testclient import TestClient
 
-from clefflow import loras as L
-from clefflow.app import create_app
-from clefflow.converter import Converter
-from clefflow.router import Router
-from clefflow.store import Store, StoreError
+from pickflow import loras as L
+from pickflow.app import create_app
+from pickflow.converter import Converter
+from pickflow.router import Router
+from pickflow.store import Store, StoreError
 
 LIB = {
     "real": {"id": "real", "title": "Realismo", "file": "real.safetensors", "strength": 0.6, "prompt": ""},
@@ -87,7 +87,7 @@ def test_rewire_builds_new_chain_in_order_and_handles_empty():
 def test_bypass_passes_input_through(oi):
     from conftest import ROOT
     import json
-    wf = json.loads((ROOT / "defaults" / "workflows" / "ClefFlow Editar - Turbo.json").read_text(encoding="utf-8"))
+    wf = json.loads((ROOT / "defaults" / "workflows" / "PickFlow Editar - Turbo.json").read_text(encoding="utf-8"))
     base = Converter(oi, randomize_seeds=False).convert(wf)
     byp = Converter(oi, randomize_seeds=False).convert(wf, bypass={"40", "41"})
     assert "40" in base and "40" not in byp and "41" not in byp

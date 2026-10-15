@@ -1,4 +1,4 @@
-/* ClefFlow: idioma da interface.
+/* PickFlow: idioma da interface.
  *
  * O texto-fonte da interface (app.js, mensagens do servidor, nomes em defaults/) é português. Em outro idioma, um
  * catálogo (web/locales/<lang>.json) traduz o que aparece na tela:

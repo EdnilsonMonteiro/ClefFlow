@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from clefflow import install_nodes as inn
+from pickflow import install_nodes as inn
 
 
 def test_installs_missing_nodes_and_keeps_changed_files_unless_told(tmp_path):

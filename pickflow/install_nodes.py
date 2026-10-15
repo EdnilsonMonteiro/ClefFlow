@@ -1,8 +1,8 @@
-"""Copia os custom nodes do ClefFlow (pasta `comfyui_nodes/`) para o `custom_nodes` do seu ComfyUI.
+"""Copia os custom nodes do PickFlow (pasta `comfyui_nodes/`) para o `custom_nodes` do seu ComfyUI.
 
-    python -m clefflow.install_nodes                 # procura o ComfyUI e pergunta
-    python -m clefflow.install_nodes "D:\\ComfyUI"    # pasta do ComfyUI (ou a custom_nodes dela)
-    python -m clefflow.install_nodes --check         # só mostra o que falta, sem copiar
+    python -m pickflow.install_nodes                 # procura o ComfyUI e pergunta
+    python -m pickflow.install_nodes "D:\\ComfyUI"    # pasta do ComfyUI (ou a custom_nodes dela)
+    python -m pickflow.install_nodes --check         # só mostra o que falta, sem copiar
 
 Só usa a biblioteca padrão. Não apaga nada; arquivos diferentes dos seus só são trocados se você confirmar.
 Depois de instalar, reinicie o ComfyUI.
@@ -24,7 +24,7 @@ def find_custom_nodes(arg: str | None = None) -> list[Path]:
     if arg:
         p = Path(arg).expanduser()
         cands += [p, p / "custom_nodes"]
-    cands += [ROOT.parent / "custom_nodes",                    # ClefFlow dentro da pasta do ComfyUI
+    cands += [ROOT.parent / "custom_nodes",                    # PickFlow dentro da pasta do ComfyUI
               Path.home() / "Documents" / "ComfyUI" / "custom_nodes",   # ComfyUI Desktop (Windows/macOS)
               Path.home() / "ComfyUI" / "custom_nodes"]
     seen, out = set(), []
@@ -77,7 +77,7 @@ def main(argv: list[str]) -> int:
     found = find_custom_nodes(args[0] if args else None)
     if not found:
         print("Não achei a pasta custom_nodes do ComfyUI. Rode de novo passando a pasta do ComfyUI:\n"
-              '  python -m clefflow.install_nodes "C:\\caminho\\do\\ComfyUI"')
+              '  python -m pickflow.install_nodes "C:\\caminho\\do\\ComfyUI"')
         return 1
     dest = found[0]
     print(f"ComfyUI: {dest}")
@@ -92,7 +92,7 @@ def main(argv: list[str]) -> int:
         return 0
     over = False
     if "diferente" in status(dest).values():
-        over = sys.stdin.isatty() and input("Há arquivos diferentes dos do ClefFlow. Substituir? [s/N] ").strip().lower() in ("s", "sim", "y")
+        over = sys.stdin.isatty() and input("Há arquivos diferentes dos do PickFlow. Substituir? [s/N] ").strip().lower() in ("s", "sim", "y")
     res = install(dest, over)
     print("Pronto:", ", ".join(f"{k} ({v})" for k, v in res.items()))
     print("Reinicie o ComfyUI para carregar os nós.")

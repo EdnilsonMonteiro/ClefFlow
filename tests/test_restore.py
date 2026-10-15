@@ -1,9 +1,9 @@
 """LoRA de restauração: prompt padrão, força, conflito com a Consistency e sumiço quando a LoRA está escondida."""
 import yaml
 
-from clefflow import loras as L
-from clefflow.clef import Answer
-from clefflow.store import Store
+from pickflow import loras as L
+from pickflow.clef import Answer
+from pickflow.store import Store
 
 from test_agent import run  # noqa: F401
 from test_e2e import _chain, api, png, start, upload, wait_event  # noqa: F401
@@ -32,7 +32,7 @@ def names(stack):
 
 
 def test_restore_lora_is_in_the_default_library_and_in_the_installer_catalog(project):
-    from clefflow.setup import catalog
+    from pickflow.setup import catalog
     s = Store(project)
     lo = s.loras()["restore"]
     assert lo["file"] == RESTORE and lo["strength"] == 1.0 and "consistency" in lo["conflicts"] and not lo["auto"]
@@ -69,7 +69,7 @@ def test_hiding_the_lora_hides_its_prompts_and_the_other_prompts_stay(project):
 
 
 def test_restore_request_runs_edit_with_the_lora_and_the_standard_prompt(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Picks({"preset": "restaurar", "var_restore_kind": "print"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Picks({"preset": "restaurar", "var_restore_kind": "print"}))
     a = upload(api, "velha.png", png((120, 110, 100), (160, 120)))
     _, rid = start(api, "restaure esta foto antiga", [a["id"]], route="edit")
     wait_event(api, rid, lambda e: e["type"] == "done", timeout=20)

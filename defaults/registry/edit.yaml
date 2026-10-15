@@ -1,6 +1,6 @@
 # Ligação técnica do workflow unificado 'edit' (edição, trocar pessoas, trocar roupa, girar o ponto de vista).
 #   modes       cada modo é um arquivo do ComfyUI (turbo, quality); o Clef escolhe o modo
-#   lora_chain  nós de LoRA do arquivo que o ClefFlow substitui a cada execução pela pilha de LoRAs
+#   lora_chain  nós de LoRA do arquivo que o PickFlow substitui a cada execução pela pilha de LoRAs
 #   lora_base   LoRAs sempre ligadas (realismo); os prompts e o Clef acrescentam ou ajustam
 #   knobs       ajustes do grafo que prompts e LoRAs podem mudar (bypass: valor 'off' ignora o nó)
 
@@ -93,13 +93,13 @@ knobs:
 modes:
   turbo:
     title: Rápido
-    file: ClefFlow Editar - Turbo.json
+    file: PickFlow Editar - Turbo.json
     outputs:
     - 25
     when: 'Fast, 6 steps. It is the default: use it whenever the user does not ask for more quality.'
   quality:
     title: Qualidade
-    file: ClefFlow Editar - Qualidade.json
+    file: PickFlow Editar - Qualidade.json
     outputs:
     - 25
     when: Slower and more detailed, 25 steps. Only when the user asks for top quality, more detail or says there is no 

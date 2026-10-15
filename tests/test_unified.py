@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 import yaml
 
-from clefflow.converter import Converter, node_id
-from clefflow import pvars
-from clefflow.loras import resolve
-from clefflow.store import Store
+from pickflow.converter import Converter, node_id
+from pickflow import pvars
+from pickflow.loras import resolve
+from pickflow.store import Store
 
 ROOT = Path(__file__).resolve().parent.parent
 LEG = ROOT / "tests" / "legacy"
@@ -19,7 +19,7 @@ LORA_TYPES = {"LoraLoader", "LoraLoaderModelOnly"}
 
 
 def base(n):
-    # o ClefFlow só usa a LoRA de consistência final: o arquivo "-2000" dos workflows antigos vale como ela
+    # o PickFlow só usa a LoRA de consistência final: o arquivo "-2000" dos workflows antigos vale como ela
     return str(n).replace("\\", "/").rsplit("/", 1)[-1].lower().replace("consistency-2000", "consistency")
 
 

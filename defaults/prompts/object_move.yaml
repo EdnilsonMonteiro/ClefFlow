@@ -1,5 +1,5 @@
 # Prompts do workflow 'object_move'. Use {request} onde o pedido do usuário entra.
-# `verify` (no "mover"): depois de gerar, o ClefFlow confere pelos pixels se a caixa vermelha mudou. Se o objeto
+# `verify` (no "mover"): depois de gerar, o PickFlow confere pelos pixels se a caixa vermelha mudou. Se o objeto
 # ficou lá também (dois iguais), roda uma segunda passada com o fluxo `fix` (remover no quadrado vermelho).
 
 default: mover

@@ -439,3 +439,13 @@ svg.orbit .cap { font-size: 9px; fill: var(--muted); }
 .op-grip.top { top: 0; } .op-grip.bottom { bottom: 0; }
 .op-fields { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 .op-field { display: flex; flex-direction: column; gap: 2px; width: 92px; }
+
+/* Mudar a pose: o esqueleto de cada pessoa sobre a foto */
+.pose-row { display: flex; gap: 20px; align-items: flex-start; flex-wrap: wrap; justify-content: center; }
+.pose-wrap { flex: none; }
+.pose-stage { position: relative; background: #000; outline: 1px solid var(--line-strong); touch-action: none; user-select: none; }
+.pose-stage img { position: absolute; inset: 0; width: 100%; height: 100%; opacity: .75; pointer-events: none; }
+.pose-svg { position: absolute; inset: 0; }
+.pose-hit { cursor: grab; }
+.pose-hit:active { cursor: grabbing; }
+.pose-side { min-width: 220px; max-width: 280px; }

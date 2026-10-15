@@ -4,7 +4,7 @@ import io
 import pytest
 from PIL import Image
 
-from clefflow.compose import burn_boxes, clamp_frac, place_layer, place_layers
+from pickflow.compose import burn_boxes, clamp_frac, place_layer, place_layers
 
 
 def png(size, color, mode="RGBA"):

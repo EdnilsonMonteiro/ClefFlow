@@ -1,7 +1,7 @@
 """Addon __NAME__: ponto de partida. Apague o que não usar.
 
-Este arquivo é carregado quando o ClefFlow inicia (reinicie depois de mudar). `register(ctx)` recebe tudo que um
-addon pode usar. Erros aqui só desligam o addon (aparecem em Ajustes > Addons); o ClefFlow continua de pé.
+Este arquivo é carregado quando o PickFlow inicia (reinicie depois de mudar). `register(ctx)` recebe tudo que um
+addon pode usar. Erros aqui só desligam o addon (aparecem em Ajustes > Addons); o PickFlow continua de pé.
 """
 import io
 import re
@@ -12,7 +12,7 @@ from PIL import Image
 def register(ctx):
     # --------------------------------------------------------------- 1. AÇÃO: um fluxo feito em Python
     # O registro registry/__ID___girar.yaml (kind: action) aponta para "__NAME__.girar". O Clef escolhe esse fluxo
-    # pela descrição em clef_prompt.yaml, e o ClefFlow chama esta função com as imagens da conversa.
+    # pela descrição em clef_prompt.yaml, e o PickFlow chama esta função com as imagens da conversa.
     @ctx.action("girar")
     async def girar(call):
         achou = re.search(r"(\d{1,3})\s*(?:°|º|graus?)", call.request)
@@ -41,7 +41,7 @@ def register(ctx):
     #         return await ctx.llm.ask(text, system="Translate to English. Output only the translation.")
 
     # --------------------------------------------------------------- 4. ROTAS HTTP próprias (para o JS do addon)
-    # Chamadas de web/main.js com ClefFlow.addonApi("__NAME__", "/ola").
+    # Chamadas de web/main.js com PickFlow.addonApi("__NAME__", "/ola").
     @ctx.router.get("/ola")
     async def ola():
         return {"mensagem": "Olá do addon __NAME__", "config": ctx.config}

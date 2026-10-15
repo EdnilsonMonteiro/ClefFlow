@@ -4,7 +4,7 @@ import re
 from pathlib import Path
 
 import uitexts
-from clefflow.store import DEFAULT_SETTINGS, Store
+from pickflow.store import DEFAULT_SETTINGS, Store
 
 ROOT = Path(__file__).resolve().parent.parent
 

@@ -1,4 +1,4 @@
-"""API web e arquivos estáticos do ClefFlow."""
+"""API web e arquivos estáticos do PickFlow."""
 from __future__ import annotations
 
 import asyncio
@@ -76,12 +76,12 @@ class ClefConfigIn(BaseModel):
 
 
 def create_app(root: Path = ROOT) -> FastAPI:
-    hf.load_env(root)                         # .env da pasta do ClefFlow (HF_TOKEN etc.)
+    hf.load_env(root)                         # .env da pasta do PickFlow (HF_TOKEN etc.)
     store = Store(root)
     store.ensure_custom_dirs()
     images = ImageStore(store.data_dir)
     convs = ConvStore(store.data_dir)
-    app = FastAPI(title="ClefFlow", version=__version__)
+    app = FastAPI(title="PickFlow", version=__version__)
     addons = AddonManager(store, app)
     pipe = Pipeline(store, images, convs, addons)
     setup = SetupService(store, pipe)
@@ -92,13 +92,13 @@ def create_app(root: Path = ROOT) -> FastAPI:
 
     @app.middleware("http")
     async def _local_only(request: Request, call_next):
-        """O ClefFlow roda na sua máquina: recusa páginas de outros sites que tentem usar o servidor
+        """O PickFlow roda na sua máquina: recusa páginas de outros sites que tentem usar o servidor
         (requisição com Origin de outro endereço) e nomes de host estranhos (DNS rebinding)."""
         if store.settings()["server"]["host"] in ("127.0.0.1", "localhost", "::1"):
             host = (request.headers.get("host") or "").rsplit(":", 1)[0] if not (request.headers.get("host") or "").startswith("[") \
                 else (request.headers.get("host") or "").split("]")[0] + "]"
             if host not in loopback:
-                return JSONResponse({"detail": "Acesse o ClefFlow por http://127.0.0.1:<porta>."}, status_code=403)
+                return JSONResponse({"detail": "Acesse o PickFlow por http://127.0.0.1:<porta>."}, status_code=403)
         origin = request.headers.get("origin")
         if origin and urlparse(origin).netloc != request.headers.get("host"):
             return JSONResponse({"detail": "Origem não permitida."}, status_code=403)
@@ -565,7 +565,7 @@ def create_app(root: Path = ROOT) -> FastAPI:
     # ------------------------------------------------------------- static
     web = root / "web"
 
-    # no-cache: o navegador revalida (ETag, 304 sem baixar de novo); sem isso, depois de atualizar o ClefFlow a página
+    # no-cache: o navegador revalida (ETag, 304 sem baixar de novo); sem isso, depois de atualizar o PickFlow a página
     # podia continuar com o app.js antigo até um Ctrl+F5
     @app.get("/")
     async def index():

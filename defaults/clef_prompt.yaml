@@ -39,8 +39,11 @@ instructions: 'You route image editing requests to ComfyUI workflows (Qwen-Image
   (3D)''. The ''girar'' prompt of edit is for orbiting around an OBJECT. To expand the photo (widen the framing to the
   sides, up or down) or fill gray areas, use edit with the ''expandir'' prompt. If the request changes the person''s
   angle AND sends a second image with their face or body, use the use case ''Mudar o ângulo da pessoa e corrigir o
-  rosto (3D + troca)''. Only ask for a second step when the request really needs two workflows in a row: one request,
-  however long, is usually ONE workflow.'
+  rosto (3D + troca)''. To change the POSE of the people in a photo (raise an arm, cross the legs, open the arms, make them
+  stand, turn the body, "put them in another pose", "let me pose them") with ONE image, use the use case ''Mudar a pose'':
+  the user moves the body points of each person on screen and the photo is redrawn with the new pose. It is not for changing
+  the camera angle, nor for making two people kiss or hug by a text instruction alone (edit does that). Only ask for a second
+  step when the request really needs two workflows in a row: one request, however long, is usually ONE workflow.'
 workflows:
   edit:
     enabled: true
@@ -87,6 +90,14 @@ workflows:
     enabled: true
     description: INTERNAL STEP. Redraws the photo at a new camera angle from the 3D render at that angle and the
       original photo (AnyAngle LoRA). Do not pick this flow on its own.
+  pose_detectar:
+    enabled: true
+    description: INTERNAL STEP of the use case 'Mudar a pose'. Finds the people in the photo (DWPose), shows the user a screen to
+      move the body points of each one and returns the pose map. Do not pick this flow on its own.
+  pose_aplicar:
+    enabled: true
+    description: INTERNAL STEP of the use case 'Mudar a pose'. Redraws the photo with the people in the new pose, from the original
+      photo and the pose map (Qwen-Image Union ControlNet). Do not pick this flow on its own.
   t2i:
     enabled: true
     description: Generates a NEW image from text, without any input image. Use only when the user asks to create or draw
@@ -287,3 +298,22 @@ recipes:
 
       The reference image only restores the identity after the camera angle change: if it shows just a face or a head,
       swap only the head; keep the new camera angle, pose and background of <image1>.'
+- id: mudar_pose
+  name: Mudar a pose
+  enabled: true
+  images: 1
+  description: 'One photo with one or more PEOPLE (or characters) and the request is to change their POSE: raise or lower an arm,
+    open the arms, cross the legs, stand up, turn the body, make them pose differently, or "let me pose them". The people are
+    found in the photo and each one gets a skeleton of body points; the user drags the points on screen to model the new pose
+    (only the people moved change, the others stay as they are) and the photo is redrawn with the new pose, keeping the identity,
+    clothing, style and background. It is not for changing the camera angle (use Mudar o ângulo da pessoa), not for swapping
+    people, clothing or backgrounds, and not for editing the people by text alone without choosing the pose.'
+  steps:
+  - workflow: pose_detectar
+    inputs:
+      image_1: user:1
+  - workflow: pose_aplicar
+    inputs:
+      image_1: user:1
+      image_2: previous
+    request: '{pose_change} {request}'

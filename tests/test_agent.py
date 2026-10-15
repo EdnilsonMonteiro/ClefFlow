@@ -5,11 +5,11 @@ import json
 import pytest
 import yaml
 
-from clefflow.clef import Answer, ClefError
-from clefflow.recipe_agent import RecipeAgent, check_recipe, recipe_overlap
-from clefflow.recipe_merge import apply_merge, merge_recipes, score_pairs
-from clefflow.router import Ctx, ImageRef, Router
-from clefflow.store import Store, StoreError
+from pickflow.clef import Answer, ClefError
+from pickflow.recipe_agent import RecipeAgent, check_recipe, recipe_overlap
+from pickflow.recipe_merge import apply_merge, merge_recipes, score_pairs
+from pickflow.router import Ctx, ImageRef, Router
+from pickflow.store import Store, StoreError
 
 from test_e2e import _answer, api, png, start, types, upload, wait_event  # noqa: F401
 
@@ -283,7 +283,7 @@ def prompt_texts(api):
 
 
 def test_manual_agent_builds_saves_and_runs_a_two_step_recipe_with_a_step_instruction(api):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(api.pipe.store.root).save_settings(AGENT)
     scripted(api)
     a, b = upload(api, "cena.png", png((10, 90, 10))), upload(api, "pessoa.png", png((200, 10, 10)))
@@ -302,7 +302,7 @@ def test_manual_agent_builds_saves_and_runs_a_two_step_recipe_with_a_step_instru
 
 
 def test_the_user_confirms_before_anything_is_saved_and_can_use_it_just_once(api):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(api.pipe.store.root).save_settings({"agent": {"enabled": True, "confirm": True}})
     scripted(api)
     a, b = upload(api), upload(api, "b.png")
@@ -316,7 +316,7 @@ def test_the_user_confirms_before_anything_is_saved_and_can_use_it_just_once(api
 
 
 def test_declining_the_new_recipe_falls_back_and_a_manual_request_without_result_says_so(api):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(api.pipe.store.root).save_settings({"agent": {"enabled": True, "confirm": True}})
     scripted(api)
     a, b = upload(api), upload(api, "b.png")
@@ -328,7 +328,7 @@ def test_declining_the_new_recipe_falls_back_and_a_manual_request_without_result
 
 
 def test_the_limit_of_kept_recipes_stops_the_agent_before_it_calls_the_llm(api):
-    from clefflow.store import Store
+    from pickflow.store import Store
     s = api.pipe.store
     Store(s.root).save_settings({"agent": {"enabled": True, "confirm": False, "max_generated": 1}})
     k = s.add_generated({**recipe(), "id": "auto_k"}, "x")
@@ -436,15 +436,15 @@ def test_merge_endpoints(api):
 
 # ------------------------------------------------- gatilho automático no pedido normal
 def test_the_gap_found_by_the_clef_wakes_the_agent_in_a_normal_request_and_covered_does_not(api, monkeypatch):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(api.pipe.store.root).save_settings(AGENT)
     llm = scripted(api)
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"route": "edit", "q": "covered"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"route": "edit", "q": "covered"}))
     a, b = upload(api), upload(api, "b.png")
     _, rid = start(api, "troque a cor da camisa", [a["id"], b["id"]])
     wait_event(api, rid, lambda e: e["type"] == "done", timeout=20)
     assert llm.calls == [] and api.pipe.store.generated_recipes() == []             # cobriu: o agente nem foi chamado
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"route": "edit", "q": "gap"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"route": "edit", "q": "gap"}))
     _, rid = start(api, "melhore a imagem 2 e depois cole na 1", [a["id"], b["id"]])
     wait_event(api, rid, lambda e: e["type"] == "done", timeout=20)
     assert len(llm.calls) == 1 and len(api.pipe.store.generated_recipes()) == 1
@@ -452,7 +452,7 @@ def test_the_gap_found_by_the_clef_wakes_the_agent_in_a_normal_request_and_cover
 
 
 def test_a_second_identical_gap_reuses_the_recipe_created_before_instead_of_piling_up(api, monkeypatch):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(api.pipe.store.root).save_settings(AGENT)
     scripted(api)
     a, b = upload(api), upload(api, "b.png")

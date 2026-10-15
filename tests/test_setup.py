@@ -8,9 +8,9 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from clefflow.app import create_app
-from clefflow.setup import catalog
-from clefflow.store import Store
+from pickflow.app import create_app
+from pickflow.setup import catalog
+from pickflow.store import Store
 
 A, B, C = b"a" * 300_000, bytes(range(256)) * 2000, b"corrompido" * 1000
 SHA_B = hashlib.sha256(B).hexdigest()
@@ -103,12 +103,12 @@ def item(c, i):
 def test_default_catalog_is_valid_sfw_and_covers_every_model_the_workflows_load(project, oi):
     store = Store(project)
     cat = catalog(store)
-    assert len(cat) == 20 and {e["group"] for e in cat} == {"lora", "model"}
+    assert len(cat) == 21 and {e["group"] for e in cat} == {"lora", "model"}
     assert all(e["url"].startswith("https://huggingface.co/") and e["license"] and e["page"] for e in cat)
     assert not re.search(r"nsfw|naked|nude|alpaca", (project / "defaults" / "models.yaml").read_text(encoding="utf-8"), re.I)
-    from clefflow.setup import used_by
+    from pickflow.setup import used_by
     needed = {f for f in used_by(store) if f.endswith(".safetensors")}
-    # tudo o que o ClefFlow carrega (fora o codificador de prompt do t2i, que ele não usa) está no catálogo
+    # tudo o que o PickFlow carrega (fora o codificador de prompt do t2i, que ele não usa) está no catálogo
     # (a LoRA de foto caseira só existe no tensor.art: não tem link direto e o assistente avisa que é manual)
     assert needed - {e["file"].lower() for e in cat} <= {"qwen3.5_9b_qwen_image_2.1_pe_t2i.int8_convrot.safetensors",
                                                          "casual_snapshot_realism_qwen21.safetensors"}
@@ -257,7 +257,7 @@ def test_catalog_accepts_lora_names_in_other_alphabets_and_still_blocks_paths(pr
     cat = {e["id"]: e for e in catalog(Store(project))}
     e = cat["pysj666_fusao"]
     assert e["file"].startswith("qwen-image-2.1") and "%E7%BA%A0" in e["url"] and e["url"].startswith("https://")
-    from clefflow.setup import NAME_RE
+    from pickflow.setup import NAME_RE
     assert NAME_RE.match("lora 一二三 v1.safetensors")
     for bad in ("../x.safetensors", "a/b.safetensors", "a\\b.safetensors", ".hidden.safetensors", "x.ckpt"):
         assert not NAME_RE.match(bad), bad

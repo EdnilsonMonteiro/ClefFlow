@@ -20,6 +20,6 @@ set:
   value: random
 drop:
 - 472
-note: Workflow oficial do ComfyUI (Qwen-Image 2.1, Image Edit) com o prompt de remover o fundo. O nó de comparação (472) não é usado pelo ClefFlow.
+note: Workflow oficial do ComfyUI (Qwen-Image 2.1, Image Edit) com o prompt de remover o fundo. O nó de comparação (472) não é usado pelo PickFlow.
 outputs:
 - 461

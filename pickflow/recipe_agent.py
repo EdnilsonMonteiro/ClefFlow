@@ -244,7 +244,7 @@ photo and improve its quality; keep the person identical"), em inglês curto e i
 Se um workflow solto já resolve, desista. Não invente workflows, prompts, modos nem LoRAs."""
 
 SYSTEM = """\
-Você é o agente que monta CASOS DE USO novos no ClefFlow, uma aplicação que edita imagens com workflows do ComfyUI.
+Você é o agente que monta CASOS DE USO novos no PickFlow, uma aplicação que edita imagens com workflows do ComfyUI.
 Um caso de uso é uma sequência de workflows (cada passo recebe imagens do usuário ou o resultado do passo anterior).
 O Clef é um modelo rápido que vê as imagens e decide perguntas de múltipla escolha; ele já escolheu um plano e apontou
 que ele NÃO cobre o pedido inteiro. Sua missão: entregar UM caso de uso válido que cumpra o pedido, ou desistir.

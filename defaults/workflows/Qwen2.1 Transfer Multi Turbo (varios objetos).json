@@ -25,7 +25,7 @@
     "Node name for S&R": "MarkdownNote"
    },
    "widgets_values": [
-    "TURBO (6 passos, sem CFG). Vários objetos: Image 1 = destino com caixas VERDES numeradas; Image 2.. = objetos, cada um com sua caixa VERMELHA. O ClefFlow desenha as caixas."
+    "TURBO (6 passos, sem CFG). Vários objetos: Image 1 = destino com caixas VERDES numeradas; Image 2.. = objetos, cada um com sua caixa VERMELHA. O PickFlow desenha as caixas."
    ],
    "widgets_values_named": {
     "text": "TURBO (Viggle 6 passos, sem CFG). Use o mesmo desenho de caixas do normal.\n\n- Image 1 = destino (caixa VERDE). Image 2 = fonte (caixa VERMELHA).\n- Turbo: 6 passos, sem CFG."

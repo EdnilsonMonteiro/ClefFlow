@@ -48,7 +48,7 @@ def validate_workflow(store: Store, wid: str, oi: dict, mode: str | None = None)
         elif t in oi and p.get("widget", "value") not in [w.name for w in widget_list(oi[t])]:
             res["errors"].append(f"Prompt: {t} não tem o widget '{p.get('widget', 'value')}'.")
     for p in m.get("params", []):
-        if "node" not in p:                      # ex.: 'crop' é feito pelo ClefFlow, não por um nó
+        if "node" not in p:                      # ex.: 'crop' é feito pelo PickFlow, não por um nó
             continue
         t = node_type(p["node"])
         if not t:

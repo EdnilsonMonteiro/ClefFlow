@@ -34,7 +34,7 @@ loras:
 ```
 
 Também dá para **baixar pelo link do Hugging Face** (aba LoRAs → *Baixar do Hugging Face*). Se o arquivo exigir chave,
-escreva `HF_TOKEN=seu_token` no arquivo `.env` da pasta do ClefFlow (modelo em `.env.example`; o git ignora o `.env`).
+escreva `HF_TOKEN=seu_token` no arquivo `.env` da pasta do PickFlow (modelo em `.env.example`; o git ignora o `.env`).
 
 Mesmo `id` de `defaults/loras.yaml` = a sua vale mais; `disabled: true` esconde uma padrão. Para uma LoRA entrar sempre
 num prompt, use o campo `loras:` do prompt em `custom/prompts/<id>.yaml`.
@@ -43,10 +43,10 @@ num prompt, use o campo `loras:` do prompt em `custom/prompts/<id>.yaml`.
 
 1. No ComfyUI, salve o workflow (**Workflow → Salvar**) e copie o `.json` para `custom/workflows/`
    (pode usar subpastas).
-2. No ClefFlow, aba **Workflows e prompts → Adicionar workflow**. Escolha o arquivo, confira onde entram
+2. No PickFlow, aba **Workflows e prompts → Adicionar workflow**. Escolha o arquivo, confira onde entram
    as imagens e o prompt e clique em **Adicionar**.
 
-O ClefFlow cria `custom/registry/<id>.yaml` e `custom/prompts/<id>.yaml`. Seu arquivo `.json` nunca é alterado.
+O PickFlow cria `custom/registry/<id>.yaml` e `custom/prompts/<id>.yaml`. Seu arquivo `.json` nunca é alterado.
 Caixas e máscaras, nós a descartar e valores fixos são acrescentados à mão no registro; use os de
 `defaults/registry/` como exemplo (`object_move.yaml` tem caixas, `t2i.yaml` tem nós dentro de subgraph).
 
@@ -57,7 +57,7 @@ workflow, como `file: NSFW/Meu workflow.json`. Em `custom/prompts/<id>.yaml` fic
 (comece copiando `defaults/prompts/<id>.yaml` e acrescente os seus). Tudo isso fica fora do git.
 O arquivo de prompts em `custom/` **substitui** o padrão inteiro: depois de um `git pull`, compare com o padrão para ver
 os prompts novos. O workflow `edit` tem 8 entradas de imagem (as sem imagem saem do grafo); ao trazer o seu, mantenha
-as 8 e a numeração dos nós de `defaults/registry/edit.yaml`, ou o ClefFlow não saberá onde pôr as imagens.
+as 8 e a numeração dos nós de `defaults/registry/edit.yaml`, ou o PickFlow não saberá onde pôr as imagens.
 
 ## Mudar um padrão sem perder as atualizações
 
@@ -69,5 +69,5 @@ as 8 e a numeração dos nós de `defaults/registry/edit.yaml`, ou o ClefFlow n�
 
 ## Remover
 
-**Remover da lista** (na própria tela) tira o workflow do ClefFlow e apaga os seus registros e prompts.
+**Remover da lista** (na própria tela) tira o workflow do PickFlow e apaga os seus registros e prompts.
 O `.json` continua em `custom/workflows/`. Para sumir de vez, apague o arquivo.

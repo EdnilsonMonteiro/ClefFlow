@@ -3,8 +3,8 @@ import io
 
 from PIL import Image
 
-from clefflow.router import Ctx, ImageRef, Router, Source, Step
-from clefflow.store import Store
+from pickflow.router import Ctx, ImageRef, Router, Source, Step
+from pickflow.store import Store
 from test_e2e import api, png, start, upload, wait_event  # noqa: F401  (fixture e helpers)
 from test_splat import Stub, answer
 
@@ -26,7 +26,7 @@ def move(api, picks_png, boxes=None):
 
 
 def test_moved_object_left_behind_gets_a_second_pass_that_removes_it(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "mover"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "mover"}))
     src = png((40, 160, 60), (100, 80))
     api.fake.views["out_38.png"] = src                      # o modelo devolveu a imagem igual: o objeto ficou no lugar
     rid = move(api, src)
@@ -44,14 +44,14 @@ def test_moved_object_left_behind_gets_a_second_pass_that_removes_it(api, monkey
 
 
 def test_a_move_that_really_cleared_the_origin_runs_once(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "mover"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "mover"}))
     rid = move(api, png((40, 160, 60), (100, 80)))            # o /view de mentira devolve outra imagem: a caixa mudou
     assert wait_event(api, rid, lambda e: e["type"] in ("done", "error"), timeout=20)["type"] == "done"
     assert len(graphs(api)) == 1
 
 
 def test_swap_is_not_verified(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "trocar"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "trocar"}))
     src = png((40, 160, 60), (100, 80))
     api.fake.views["out_38.png"] = src
     rid = move(api, src)
@@ -96,7 +96,7 @@ def _fuse_prompt(api, corpo, request="Make the joker from image 2 sitting at the
 
 
 def test_incomplete_person_is_completed_in_the_fusion_with_the_request(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "completar"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "completar"}))
     text, rid = _fuse_prompt(api, "completar")
     assert text.startswith("pysj666") and "complete the whole person" in text
     assert text.endswith("sitting at the chair of image 1. He holds a beer in his hands.")      # o pedido diz a pose e a ação
@@ -110,7 +110,7 @@ def test_incomplete_person_is_completed_in_the_fusion_with_the_request(api, monk
 
 
 def test_complete_person_keeps_the_plain_fusion_without_the_request(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "inteiro"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "inteiro"}))
     text, _rid = _fuse_prompt(api, "inteiro")
     assert text.startswith("pysj666 keep the subject position") and "joker" not in text and "complete the whole person" not in text
     fuse = list(api.fake.prompts.values())[2]
@@ -126,7 +126,7 @@ def test_the_clef_is_asked_about_the_body_looking_at_the_collage(api, monkeypatc
                 seen["q"], seen["n"], seen["labels"] = questions["var_corpo"], len(images or []), [s["label"] for s in state.get("sources", [])]
             return await super().decide(state, questions, images)
 
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Spy({"role_background": "user_1", "role_subject": "user_2"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Spy({"role_background": "user_1", "role_subject": "user_2"}))
     _fuse_prompt(api, "inteiro")
     assert seen["n"] == 3 and seen["labels"][-1] == "Resultado do passo anterior"          # as 2 enviadas + a colagem
     assert "LAST image" in seen["q"]["instructions"] and set(seen["q"]["criteria"]) == {"inteiro", "completar"}
@@ -140,7 +140,7 @@ def _rgba(box, size=(100, 80)):
 
 
 def test_cut_edges_sees_a_bust_but_not_a_whole_object():
-    from clefflow.storage import cut_edges
+    from pickflow.storage import cut_edges
     assert cut_edges(_rgba((20, 30, 60, 47))) == ["bottom"]                # o SAM3 deixa 3 px de folga: ainda conta
     assert cut_edges(_rgba((20, 10, 60, 50))) == []                        # inteiro, com margem
     assert cut_edges(_rgba((0, 10, 30, 70))) == ["bottom", "left"]
@@ -149,7 +149,7 @@ def test_cut_edges_sees_a_bust_but_not_a_whole_object():
 
 def test_a_cut_off_person_makes_the_fusion_complete_the_body_even_if_the_clef_says_whole(api, monkeypatch):
     import test_e2e
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "inteiro"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "inteiro"}))
     api.fake.view_rgba = True
     bust = _rgba((20, 20, 60, 60))                                         # encosta embaixo: um busto
     api.fake.views["out_14.png"] = bust
@@ -168,7 +168,7 @@ def test_a_cut_off_person_makes_the_fusion_complete_the_body_even_if_the_clef_sa
 
 
 def test_transparent_inputs_reach_comfyui_on_white_not_black(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "livre"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "livre"}))
     a = upload(api, "personagem.png", _rgba((20, 10, 40, 40)))           # fundo transparente
     _, rid = start(api, "deixe mais quente", [a["id"]], route="edit@turbo")
     assert wait_event(api, rid, lambda e: e["type"] in ("done", "error"))["type"] == "done"

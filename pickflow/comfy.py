@@ -18,7 +18,7 @@ class ComfyError(Exception):
 
 
 class ComfyClient:
-    def __init__(self, base_url: str, cache_dir: Path, upload_subfolder: str = "clefflow",
+    def __init__(self, base_url: str, cache_dir: Path, upload_subfolder: str = "pickflow",
                  timeout_s: float = 1800):
         self.base_url = base_url.rstrip("/")
         self.cache = Path(cache_dir) / "object_info.json"

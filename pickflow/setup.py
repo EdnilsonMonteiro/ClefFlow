@@ -1,4 +1,4 @@
-"""Primeiros passos: achar o ComfyUI, instalar os nós do ClefFlow e baixar LoRAs e modelos.
+"""Primeiros passos: achar o ComfyUI, instalar os nós do PickFlow e baixar LoRAs e modelos.
 
 Nada é baixado nem copiado sem o usuário marcar na tela. Só entram na lista os arquivos de
 `defaults/models.yaml` (e de `custom/models.yaml`, se você criar); o cliente nunca manda endereço nem caminho.
@@ -22,10 +22,11 @@ from . import hf, install_nodes
 from .comfy import ComfyError
 from .store import Store, StoreError, atomic_write
 
-FOLDERS = ("loras", "diffusion_models", "text_encoders", "vae", "clip_vision", "background_removal")
+FOLDERS = ("loras", "diffusion_models", "text_encoders", "vae", "clip_vision", "background_removal", "controlnet")
 COMBOS = {"loras": ("LoraLoader", "lora_name"), "diffusion_models": ("UNETLoader", "unet_name"),
           "text_encoders": ("CLIPLoader", "clip_name"), "vae": ("VAELoader", "vae_name"),
-          "clip_vision": ("CLIPVisionLoader", "clip_name"), "background_removal": ("LoadBackgroundRemovalModel", "bg_removal_name")}
+          "clip_vision": ("CLIPVisionLoader", "clip_name"), "background_removal": ("LoadBackgroundRemovalModel", "bg_removal_name"),
+          "controlnet": ("QwenImage21UnionLoader", "union_model")}
 NAME_RE = re.compile(r"^\w[\w._ \-]{0,150}\.safetensors$")      # \w aceita letras de qualquer idioma (há LoRAs com nome em chinês)
 ID_RE = re.compile(r"^[a-z0-9_]{1,40}$")
 LOOPBACK = {"127.0.0.1", "localhost", "::1", "[::1]"}
@@ -341,7 +342,7 @@ class SetupService:
 
     def _external(self, env: dict) -> list[dict]:
         """Nodes de outros autores que os workflows pedem (campo requires_nodes do registro).
-        O ClefFlow não os instala: mostra o que falta e onde pegar (ComfyUI Manager ou o GitHub do autor)."""
+        O PickFlow não os instala: mostra o que falta e onde pegar (ComfyUI Manager ou o GitHub do autor)."""
         oi, found = env["oi"], {}
         for wid, m in self.store.manifests().items():
             for r in m.get("requires_nodes") or []:

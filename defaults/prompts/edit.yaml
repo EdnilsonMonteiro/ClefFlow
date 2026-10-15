@@ -251,7 +251,7 @@ presets:
   rewrite: false
   auto_loras: false
   # expand_edit: antes de gerar, abre a tela "Ampliar a imagem" (needs_input kind `outpaint`) com a margem que o Clef
-  # sugeriu (ou zerada, na opção `choose`); a pessoa ajusta cada lado e o ClefFlow acrescenta o cinza #808080 que a LoRA completa.
+  # sugeriu (ou zerada, na opção `choose`); a pessoa ajusta cada lado e o PickFlow acrescenta o cinza #808080 que a LoRA completa.
   expand_edit: true
   # sobrou cinza (#808080) em mais de 2% da imagem: roda de novo sobre o resultado, até 2 vezes (a semente muda muito
   # o quanto a LoRA completa: no ComfyUI real, o mesmo render de quarto saiu com 0,3% ou 19% de cinza)

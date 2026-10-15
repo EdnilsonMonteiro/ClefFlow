@@ -1,9 +1,9 @@
-"""Recorte de pessoa: SAM3 + RMBG (clefflow/cutout.py), com máscaras sintéticas."""
+"""Recorte de pessoa: SAM3 + RMBG (pickflow/cutout.py), com máscaras sintéticas."""
 import io
 
 from PIL import Image, ImageDraw
 
-from clefflow.cutout import merge_masks, merge_person_cutouts
+from pickflow.cutout import merge_masks, merge_person_cutouts
 
 W, H = 400, 600
 

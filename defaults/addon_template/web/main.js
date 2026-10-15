@@ -1,6 +1,6 @@
-/* Interface do addon __NAME__. Carregada sozinha pelo ClefFlow; usa window.ClefFlow (veja addons/README.md). */
+/* Interface do addon __NAME__. Carregada sozinha pelo PickFlow; usa window.PickFlow (veja addons/README.md). */
 (function () {
-  const CF = window.ClefFlow, h = CF.h;
+  const CF = window.PickFlow, h = CF.h;
 
   // Botão ao lado de "Anexar imagem": escreve um pedido pronto.
   CF.addButton({ label: 'Girar 90°', title: 'Escreve o pedido para girar a imagem', onClick: () => CF.setText('gire a imagem 90 graus') });

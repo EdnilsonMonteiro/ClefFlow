@@ -28,8 +28,9 @@ from .cutout import merge_person_cutouts
 from .storage import (ConvStore, ImageStore, NoTransparency, crop_fraction, cut_edges, cutout_state, flatten_alpha, mask_to_alpha_png,
                       to_png, trim_to_alpha)
 from .addons import ActionCall, AddonManager, LLM
-from .compose import (burn_boxes, clamp_frac, expand_spec, fit_megapixels, gray_fraction, pad_gray, paste_back, place_layers,
-                      region_change)
+from .compose import (blend_masked, burn_boxes, clamp_frac, expand_spec, fit_megapixels, gray_fraction, pad_gray, paste_back,
+                      place_layers, region_change)
+from . import pose as poselib
 from .splats import SplatStore, splat_key, view as splat_view
 from .store import Store, StoreError
 from .recipe_agent import RecipeAgent
@@ -52,6 +53,9 @@ class Run:
     cancelled: bool = False
     inputs: dict[str, asyncio.Future] = field(default_factory=dict)
     cond: asyncio.Condition = field(default_factory=asyncio.Condition)
+    pose_reference: bytes | None = None  # "Mudar a pose": a foto sem os membros que mexeram (o remover apagou o lugar antigo)
+    pose_source: bytes | None = None     # a foto original e a máscara de onde ela pode mudar: o resto do resultado volta a ser o pixel dela
+    pose_mask: Image.Image | None = None
 
     async def emit(self, ev: dict):
         async with self.cond:
@@ -100,7 +104,7 @@ class Pipeline:
     async def comfy(self) -> ComfyClient:
         s = self.store.settings()["comfyui"]
         if self._comfy is None or self._comfy.base_url != s["url"].rstrip("/"):
-            self._comfy = ComfyClient(s["url"], self.store.data_dir, s.get("upload_subfolder", "clefflow"),
+            self._comfy = ComfyClient(s["url"], self.store.data_dir, s.get("upload_subfolder", "pickflow"),
                                       float(s.get("timeout_s", 1800)))
         return self._comfy
 
@@ -299,6 +303,7 @@ class Pipeline:
             if self.store.manifest(step.workflow, binding.mode).get("review") == "cutout":
                 result = await self._review_cutout(run, idx, step, m, binding, sources, sctx, settings, result)
             await self._on_partial(run, m, binding, steps, idx, result)
+            self._on_pose(steps, idx, result)
             if m.get("splat"):
                 src = self._first_source(m, binding, sources)
                 if src:
@@ -331,6 +336,77 @@ class Pipeline:
         names = {"bottom": "inferior", "left": "esquerda", "right": "direita"}
         await run.emit({"type": "status", "text": "O recorte encosta na borda " + " e ".join(names[e] for e in edges if e in names)
                         + " da foto (a pessoa está cortada): a fusão vai completar o corpo e a pose."})
+
+    @staticmethod
+    def _on_pose(steps: list[Step], idx: int, result: list[dict]) -> None:
+        """O passo da pose devolve, junto do mapa, a frase que descreve o que a pessoa mexeu: ela entra no `request` dos passos
+        seguintes no lugar de `{pose_change}` (o ControlNet sozinho quase não move ninguém: o texto diz quem muda)."""
+        text = (result[0].get("pose_text") if result else None) or None
+        if text is None:
+            return
+        for st in steps[idx + 1:]:
+            if st.request and "{pose_change}" in st.request:
+                st.request = st.request.replace("{pose_change}", text)
+
+    async def _pose_choose(self, run: Run, idx: int, m: dict, src: Source | None, outputs: dict, ctx: Ctx, settings: dict) -> list[dict]:
+        """Mostra o esqueleto de cada pessoa da foto (pontos do DWPose) e deixa a pessoa montar a nova pose. Devolve o mapa de
+        pose (todas as pessoas: as que mudaram e as que ficam como estão) como imagem, com a frase do que mudou."""
+        if src is None:
+            raise RouterError("O passo da pose precisa de uma foto.")
+        nodes = [str(n) for n in (m.get("pose") or {}).get("nodes") or [(m.get("pose") or {}).get("node")]]
+        w, h = Image.open(io.BytesIO(src.data)).size
+
+        def read(n: str, frames: bool):
+            raw = (outputs.get(n) or {}).get("openpose_json") or []
+            if not raw:
+                return []
+            return poselib.parse_frames(raw[0], w, h) if frames else poselib.parse(raw[0], w, h)
+
+        try:
+            # 1º nó: um quadro por pessoa que o SAM 3 separou; 2º (se houver): a foto inteira, de reserva
+            people = poselib.combine(read(nodes[0], True), read(nodes[1], False) if len(nodes) > 1 else [])
+        except (ValueError, TypeError):
+            people = []
+        if not people:
+            raise ComfyError("Não achei nenhuma pessoa nesta foto. Use uma foto em que o corpo (ou parte dele) apareça.")
+        value = await self.ask_user(run, {"kind": "pose", "title": "Modele a pose", "image_url": src.url, "size": [w, h],
+                                          "people": [p[:poselib.BODY] for p in people]})        # a tela mexe no corpo; as mãos vão atrás do braço
+        if not isinstance(value, dict) or value.get("people") is None:
+            raise RunCancelled()
+        try:
+            edited = poselib.clean(value["people"])
+        except ValueError as e:
+            raise RouterError(f"Pose inválida: {e}") from e
+        if len(edited) != len(people):
+            raise RouterError("Pose inválida: o número de pessoas mudou.")
+        text = poselib.describe(people, edited, w, h)
+        if not text or not any(poselib.changed(o, e) for o, e in zip(people, edited)):
+            raise RouterError("Nenhuma pose foi alterada: mexa nos pontos de pelo menos uma pessoa e confirme.")
+        run.pose_reference = await self._pose_erase(run, idx, src, poselib.erase_boxes(people, edited, w, h),
+                                                    poselib.erase_text(people, edited, w, h), ctx, settings)
+        full = poselib.with_hands(people, edited, w, h)
+        run.pose_source, run.pose_mask = flatten_alpha(to_png(src.data)), poselib.change_mask(people, full, w, h)       # a mesma foto que o modelo viu (PNG com alfa vai achatado em branco)
+        res = {**self.images.save(poselib.draw(full, w, h), "mapa_de_pose.png"), "pose_text": text}
+        await run.emit({"type": "step_done", "index": idx, "title": m.get("title"), "images": [res], "extras": []})
+        return [res]
+
+    async def _pose_erase(self, run: Run, idx: int, src: Source, boxes: list[list[float]], what: str, ctx: Ctx, settings: dict) -> bytes:
+        """O ControlNet só desenha o membro na posição nova; o antigo continua na foto de referência e aparece duplicado (testado:
+        o braço que abraçava o parceiro ficava). Gerar por cima (máscara do Union, ou o Outpaint em cima de cinza) não resolve: o
+        modelo recria o braço, porque a cena "pede" um. O que obedece a "tirar" é o fluxo de remover no quadrado vermelho do PickFlow:
+        põe um quadrado sobre cada membro que mexeu e remove, reconstruindo o corpo, a roupa e o fundo atrás."""
+        known = self.store.manifests()
+        if not boxes or not what or "replace_redbox" not in known:
+            return src.data
+        await run.emit({"type": "status", "text": "Apagando o lugar antigo dos membros que mexeram…"})
+        m2 = known["replace_redbox"]
+        modes = m2.get("modes") or {}
+        mode = next(iter(modes)) if modes else None
+        step2 = Step("replace_redbox", "remover", {"image_1": "previous"}, mode, None, None, what)
+        bind2 = Binding("remover", {"image_1": "previous"}, [], mode, [], {})
+        res = await self._run_step(run, idx, step2, m2, bind2, [Source("previous", "Foto com os membros antigos", src.data, src.url)],
+                                   self._step_ctx(ctx, step2), settings, forced={"red": [{"b": b, "ref": None} for b in boxes]})
+        return self.images.load(res[0]["id"])
 
     @staticmethod
     def _first_source(m: dict, binding: Binding, sources: list[Source]) -> Source | None:
@@ -631,6 +707,8 @@ class Pipeline:
                 if mask is None:
                     raise RouterError("Faltou a máscara para o workflow de inpaint.")
                 data = mask_to_alpha_png(data, mask)
+            if m.get("pose_reference") == slot["key"] and run.pose_reference:      # "Mudar a pose": a foto sem o membro antigo
+                data = run.pose_reference
             if expand and expanded is None:                  # outpaint: a 1ª imagem ganha uma borda cinza para o modelo completar
                 padded, box = pad_gray(data, expand)
                 pim = Image.open(io.BytesIO(padded))
@@ -683,6 +761,8 @@ class Pipeline:
         if splat:
             meta = await self._save_splat(comfy, outputs, splat, splat_src, splat_k)
             return await self._splat_choose(run, idx, step, m, splat_src, meta)
+        if m.get("pose"):
+            return await self._pose_choose(run, idx, m, self._first_source(m, binding, list(by_key.values())), outputs, ctx, settings)
         results: list[dict] = []
         pics: list[tuple[str, bytes, str]] = []
         for n in out_nodes:
@@ -695,6 +775,9 @@ class Pipeline:
             except Exception as e:  # noqa: BLE001
                 await run.emit({"type": "status", "text": f"Não consegui somar as máscaras ({e}); uso só a do SAM3."})
                 pics = pics[:1]
+        if m.get("pose_blend") and run.pose_mask is not None and run.pose_source:          # só o que mexeu vem do modelo
+            await run.emit({"type": "status", "text": "Mantendo os pixels da foto original fora dos membros que mexeram."})
+            pics = [(n, blend_masked(run.pose_source, d, run.pose_mask), f) for n, d, f in pics]
         if expanded is not None:                               # o que já existia volta idêntico; só a borda vem do modelo
             pics = [(n, paste_back(d, expanded[0], expanded[1], expanded[2]), f) for n, d, f in pics]
         for _n, data, fname in pics:
@@ -880,7 +963,7 @@ class Pipeline:
 
         async def ask(kind: str, **payload):
             if kind in ("draw", "angle", "cutout", "choose"):
-                raise RouterError("Use um nome próprio para a tela do addon (os nomes draw, angle, cutout e choose são do ClefFlow).")
+                raise RouterError("Use um nome próprio para a tela do addon (os nomes draw, angle, cutout e choose são do PickFlow).")
             value = await self.ask_user(run, {"kind": kind, "title": payload.pop("title", m.get("title")), **payload})
             if value is None:
                 raise RunCancelled()

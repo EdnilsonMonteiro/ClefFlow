@@ -1,4 +1,4 @@
-# Só para rodar o Clef localmente (o ClefFlow em si usa o requirements.txt da raiz).
+# Só para rodar o Clef localmente (o PickFlow em si usa o requirements.txt da raiz).
 # torch precisa ser a build CUDA certa para a sua placa: https://pytorch.org/get-started/locally/
 torch>=2.11
 transformers>=5.10.2

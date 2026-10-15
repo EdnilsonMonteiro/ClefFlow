@@ -151,6 +151,9 @@ PASTE_QUESTION = ("The user sent two images and wants to bring something from on
 PASTE_CRITERIA = {                      # "outra" primeiro: sem resposta clara, nada muda
     "outra": "Something else: copy the style, swap ONLY the face, the head or the clothing of a person for the other "
              "image's, or an edit that does not bring a whole person or object from one image into the other.",
+    "trocar": "The request is a PERSON SWAP: the person in the scene becomes the person from the other image and the request "
+              "says it is about the person's body, face or head ('face and body', 'body swap', 'swap the bodies', "
+              "'swap their faces', 'head swap', 'change who this person is').",
     "substituir": "The WHOLE person or object from the other image goes IN PLACE OF someone or something that IS ALREADY "
                   "in the scene, which must go away ('in place of', 'replace', 'swap X for Y', 'instead of', 'I want X "
                   "where Y is').",
@@ -160,7 +163,7 @@ PASTE_CRITERIA = {                      # "outra" primeiro: sem resposta clara, 
                    "on top of, sitting, on the beach, on the table) and everything already in the scene stays; nobody "
                    "leaves.",
 }
-PASTE_NAMES = {"substituir": "substitui algo que já está na cena", "segurar": "alguém segura ou usa",
+PASTE_NAMES = {"trocar": "troca a pessoa (corpo e/ou rosto)", "substituir": "substitui algo que já está na cena", "segurar": "alguém segura ou usa",
                "acrescentar": "é acrescentado (o resto fica)", "outra": "outra edição"}
 
 
@@ -356,6 +359,7 @@ class Router:
         decisions.append(decision_view("route", "Rota", route_ans, names, self.clef.mode))
         if route_ans.confidence < float(settings.get("refine_below", 0.6)) and len(route_opts) > 2:
             route_ans = await self._refine_route(ctx, route_ans, route_opts, names, decisions)
+        asked_route = route_ans.choice                         # o `then` foi respondido pensando nesta rota
         route_ans, intent = await self._paste_intent(ctx, route_ans, route_opts, names, decisions)
         steps = self.steps_from_route(route_ans.choice)
         if intent and steps and steps[0].workflow == "transfer_object":         # substituir tira o que está na caixa verde
@@ -369,7 +373,7 @@ class Router:
             then = weigh_option(then, NONE, float(settings.get("then_none_weight", 1.5)))
             decisions.append(decision_view("then", "Etapa seguinte", then, names, self.clef.mode))
             if (not route_ans.choice.startswith("recipe__") and then.choice not in (None, NONE)
-                    and then.choice != route_ans.choice and len(steps) < max_steps
+                    and then.choice not in (route_ans.choice, asked_route) and len(steps) < max_steps
                     and then.confidence >= float(settings.get("then_min", 0.5))):
                 steps.append(Step(then.choice))
         gap = await self.check_gap(ctx, route_ans.choice, then.choice if then is not None else None, route_opts, names)
@@ -416,7 +420,10 @@ class Router:
         enquanto a escolha entre todas as rotas trocava "no lugar de" e "segurar" por colagem ou pelo editor.
           substituir / segurar -> transfer_object (só ele tira o que estava lá e redesenha a mão segurando)
           acrescentar          -> Colar e fundir (ou Só colar, se já era essa): lugar e tamanho na tela, identidade igual
-          outra                -> fica a rota escolhida (estilo, rosto, roupa...)"""
+          trocar               -> o editor (prompt "Trocar pessoas": corpo e/ou rosto); o pedido diz que é troca de pessoa
+          outra                -> fica a rota escolhida (estilo, rosto, roupa...)
+        Testado no Clef real: "replace the woman in image 1 with the man in image 2, face and body" caía em `substituir`
+        e ia para o transferir objeto (e o `then` ainda acrescentava o editor depois)."""
         if len(ctx.images) != 2 or route_ans.choice not in PASTE_FAMILY:
             return route_ans, None
         try:
@@ -426,7 +433,9 @@ class Router:
         decisions.append(decision_view("paste_intent", "O que acontece com o que vem da outra imagem", a, PASTE_NAMES, self.clef.mode))
         if a.confidence < 0.6 or a.choice == "outra":
             return route_ans, (a.choice if a.choice != "outra" and a.confidence >= 0.6 else None)
-        if a.choice in ("substituir", "segurar"):
+        if a.choice == "trocar":
+            target = "edit"
+        elif a.choice in ("substituir", "segurar"):
             target = "transfer_object"
         elif route_ans.choice == "recipe__colar_sem_fundir":
             target = route_ans.choice

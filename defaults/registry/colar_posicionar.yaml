@@ -1,10 +1,10 @@
 # Ligação técnica do workflow 'colar_posicionar' (nós do ComfyUI). Raramente precisa mudar.
 # Etapa 1 do "Colar + Fundir", parte 2: o Create Layered Image monta a colagem. No ComfyUI você arrasta a pessoa
-# no próprio node; no ClefFlow a posição e o tamanho (livres, inclusive parte fora do fundo) vêm do desenho feito no chat:
-# o ClefFlow corta a parte que sai da imagem e entra no Add Layer já no tamanho final.
+# no próprio node; no PickFlow a posição e o tamanho (livres, inclusive parte fora do fundo) vêm do desenho feito no chat:
+# o PickFlow corta a parte que sai da imagem e entra no Add Layer já no tamanho final.
 
 id: colar_posicionar
-file: ClefFlow Colar - Posicionar.json
+file: PickFlow Colar - Posicionar.json
 title: Colar - posicionar a pessoa no fundo
 group: colagem
 internal: true

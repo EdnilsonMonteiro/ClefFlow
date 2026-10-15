@@ -7,9 +7,9 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from clefflow.addons import AddonError, new_addon
-from clefflow.app import create_app
-from clefflow.store import Store
+from pickflow.addons import AddonError, new_addon
+from pickflow.app import create_app
+from pickflow.store import Store
 
 from test_e2e import png, start, types, upload, wait_event
 
@@ -49,7 +49,7 @@ def test_new_addon_copies_the_template_and_renames_everything(project):
 
 
 def test_cli_creates_an_addon(project, monkeypatch, capsys):
-    import clefflow.__main__ as cli
+    import pickflow.__main__ as cli
     monkeypatch.setattr(cli, "ROOT", project)
     shutil.copytree(ROOT / "defaults" / "addon_template", project / "defaults" / "addon_template", dirs_exist_ok=True)
     assert cli.main(["addon", "new", "outro"]) == 0 and (project / "addons" / "outro" / "addon.py").is_file()
@@ -253,7 +253,7 @@ def test_action_errors_become_a_message_and_do_not_crash(project, comfy):
 def test_llm_helper_talks_to_the_configured_server(project, comfy, monkeypatch):
     import asyncio
     import httpx
-    from clefflow.addons import LLM
+    from pickflow.addons import LLM
     sent = {}
 
     class FakeClient:
@@ -264,7 +264,7 @@ def test_llm_helper_talks_to_the_configured_server(project, comfy, monkeypatch):
             sent.update(url=url, body=json, headers=headers)
             req = httpx.Request("POST", url)
             return httpx.Response(200, json={"choices": [{"message": {"content": ' {"cores": ["azul"]} '}}]}, request=req)
-    monkeypatch.setattr("clefflow.llm.httpx.AsyncClient", FakeClient)
+    monkeypatch.setattr("pickflow.llm.httpx.AsyncClient", FakeClient)
     llm = LLM(lambda: {"url": "http://x/v1", "model": "m", "timeout_s": 5})
     assert llm.configured
     data = asyncio.run(llm.ask_json("liste cores", system="json"))
@@ -282,11 +282,11 @@ def test_addons_folder_is_git_ignored_but_its_readme_is_not():
 
 def test_the_addons_skill_ships_with_valid_front_matter():
     import yaml
-    p = ROOT / ".claude" / "skills" / "clefflow-addons" / "SKILL.md"
+    p = ROOT / ".claude" / "skills" / "pickflow-addons" / "SKILL.md"
     text = p.read_text(encoding="utf-8")
     meta = yaml.safe_load(text.split("---")[1])
-    assert meta["name"] == "clefflow-addons" and len(meta["description"]) < 1024
-    for must in ("kind: action", "@ctx.action", "ClefFlow.registerInput", "addon new", "custom/` > `addons/` > `defaults/"):
+    assert meta["name"] == "pickflow-addons" and len(meta["description"]) < 1024
+    for must in ("kind: action", "@ctx.action", "PickFlow.registerInput", "addon new", "custom/` > `addons/` > `defaults/"):
         assert must in text.replace("window.", "") or must in text
 
 

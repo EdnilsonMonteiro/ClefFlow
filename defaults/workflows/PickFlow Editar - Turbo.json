@@ -21,7 +21,7 @@
    "outputs": [],
    "properties": {},
    "widgets_values": [
-    "## ClefFlow - Editar imagem (unificado)\n\nUm grafo só para editar, trocar pessoas (corpo e/ou cabeça), trocar roupas e girar o ponto de vista. O ClefFlow monta o prompt e a cadeia de LoRAs (nós 45, 49 e 46) a cada execução; os valores salvos aqui são só a base de realismo.\n\n- Image 1: base (cena ou foto a editar)\n- Image 2 a 8: referências (opcionais; as vazias saem do grafo)\n- Os escaladores (nós 40, 41, 51, 53, 55, 57, 59, 61) são ligados ou ignorados pelo ClefFlow (ajustes scene_mp e ref_mp).\n"
+    "## PickFlow - Editar imagem (unificado)\n\nUm grafo só para editar, trocar pessoas (corpo e/ou cabeça), trocar roupas e girar o ponto de vista. O PickFlow monta o prompt e a cadeia de LoRAs (nós 45, 49 e 46) a cada execução; os valores salvos aqui são só a base de realismo.\n\n- Image 1: base (cena ou foto a editar)\n- Image 2 a 8: referências (opcionais; as vazias saem do grafo)\n- Os escaladores (nós 40, 41, 51, 53, 55, 57, 59, 61) são ligados ou ignorados pelo PickFlow (ajustes scene_mp e ref_mp).\n"
    ],
    "widgets_values_named": {
     "text": "## Qwen-Image-2.1 Body Swap (BFS)\n\nTroca a PESSOA inteira (corpo + roupa) pela pessoa de uma referencia, mantendo a cena.\n\n### Como usar\n- **Image 1 (Cena)**: a foto cuja pose, enquadramento, luz e fundo serao mantidos.\n- **Image 2 (Referencia)**: a pessoa cujo corpo, roupa e proporcoes serao transferidos.\n- Mantenha esta ordem. Nao inverta.\n\n### LoRA (ja baixada)\n- `models/loras/bfs_body_swap_v1.0_qwen_2.1.safetensors` - forca 1.0.\n\n### Ajustes que o autor recomenda (ja aplicados)\n- **Cena** escalada para ~2.0 MP e **referencia** para ~0.59 MP (nodes `ImageScaleToTotalPixels`).\n- `resolution = 0` no TextEncodeQwenImage21 (o latent segue o tamanho da cena).\n- Referencia ideal: pessoa em pe, corpo inteiro, de frente, fundo claro e liso.\n  Se for um retrato fechado, normalize antes (o guia do autor traz um prompt pra isso).\n\n### Arquivos\n- **Turbo**: 6 passos (Viggle Turbo), rapido.\n- **Quality**: KSampler 25 passos, cfg 1, euler/simple.\n\n### Memoria\n- int8 + `--disable-fast-disk`. Se faltar VRAM, reduza a escala da cena para ~1.5 MP.\n\n### Dica\n- Numeros (poses exatas, maos) sao aproximados; resultados variam com a referencia.\n"
@@ -2082,7 +2082,7 @@
      ]
     }
    ],
-   "title": "Prompt (o ClefFlow monta)",
+   "title": "Prompt (o PickFlow monta)",
    "properties": {
     "Node name for S&R": "PrimitiveStringMultiline"
    },

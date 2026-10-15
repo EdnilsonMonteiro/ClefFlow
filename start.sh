@@ -5,5 +5,5 @@ if [ ! -x .venv/bin/python ]; then
   python3 -m venv .venv
   .venv/bin/python -m pip install -q -r requirements.txt
 fi
-echo "ClefFlow em http://127.0.0.1:7860"
-exec .venv/bin/python -m clefflow
+echo "PickFlow em http://127.0.0.1:7860"
+exec .venv/bin/python -m pickflow

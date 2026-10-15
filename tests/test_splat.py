@@ -5,9 +5,9 @@ import io
 import pytest
 from PIL import Image
 
-from clefflow.clef import Answer
-from clefflow.compose import pad_gray, paste_back
-from clefflow.store import Store
+from pickflow.clef import Answer
+from pickflow.compose import pad_gray, paste_back
+from pickflow.store import Store
 from test_e2e import api, png, start, upload, wait_event  # noqa: F401  (fixture e helpers)
 
 
@@ -152,7 +152,7 @@ def test_pad_gray_and_paste_back_keep_the_original():
 
 
 def test_expand_preset_pads_the_photo_and_pastes_it_back(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "sides"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "sides"}))
     a = upload(api, "praia.png", png((0, 90, 200), (128, 96)))
     _cid, rid = start(api, "aumente a foto para os lados", [a["id"]], route="edit@turbo")
     ev = wait_event(api, rid, lambda e: e["type"] == "needs_input" and e.get("kind") == "outpaint")
@@ -173,7 +173,7 @@ def test_expand_preset_pads_the_photo_and_pastes_it_back(api, monkeypatch):
 
 
 def test_expand_gray_only_does_not_pad(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "gray"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "gray"}))
     a = upload(api, "render.png", png((128, 128, 128), (64, 64)))
     _cid, rid = start(api, "complete as partes cinza", [a["id"]], route="edit@turbo")
     assert wait_event(api, rid, lambda e: e["type"] in ("done", "error"))["type"] == "done"
@@ -204,7 +204,7 @@ def test_3d_workflows_are_registered(project, wid):
 
 def test_angle_then_face_swap_with_reference(api, monkeypatch):
     stub = Stub({"role_person": "user_1", "role_reference": "user_2", "var_scope": "head"})
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: stub)
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: stub)
     a = upload(api, "pessoa.png", png((200, 10, 10), (60, 120)))
     b = upload(api, "rosto.png", png((10, 10, 200), (40, 40)))
     _cid, rid = start(api, "mostre de lado e use o rosto da imagem 2", [a["id"], b["id"]], route="recipe__pessoa_angulo_troca")
@@ -227,7 +227,7 @@ def test_angle_then_face_swap_with_reference(api, monkeypatch):
 
 
 def test_cutout_mode_switch_keeps_the_sam3_text_consistent(api):
-    from clefflow.router import Binding, Step
+    from pickflow.router import Binding, Step
     pipe = api.pipe
     b = Binding("padrao", {"image_1": "user_1"}, mode="objeto", vars={"alvo": "chair", "cor": "blue"})
     st = Step("colar_recortar")
@@ -239,7 +239,7 @@ def test_cutout_mode_switch_keeps_the_sam3_text_consistent(api):
 
 
 def test_gray_fraction_measures_the_leftover_outpaint_gray():
-    from clefflow.compose import gray_fraction
+    from pickflow.compose import gray_fraction
     half = Image.new("RGB", (64, 64), (128, 128, 128))
     half.paste(Image.new("RGB", (64, 32), (10, 200, 30)), (0, 0))
     buf = io.BytesIO(); half.save(buf, "PNG")
@@ -250,7 +250,7 @@ def test_gray_fraction_measures_the_leftover_outpaint_gray():
 
 def test_outpaint_screen_lets_you_pick_the_gray_yourself(api, monkeypatch):
     # opção "Escolher na tela": sem sugestão do Clef, a pessoa acrescenta o cinza (aqui só em cima e embaixo)
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "choose"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "choose"}))
     a = upload(api, "praia.png", png((0, 90, 200), (128, 96)))
     _cid, rid = start(api, "só outpaint", [a["id"]], route="edit@turbo")
     ev = wait_event(api, rid, lambda e: e["type"] == "needs_input" and e.get("kind") == "outpaint")
@@ -263,7 +263,7 @@ def test_outpaint_screen_lets_you_pick_the_gray_yourself(api, monkeypatch):
 
 
 def test_outpaint_screen_cancel_ends_the_run(api, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "sides"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"preset": "expandir", "var_expand": "sides"}))
     a = upload(api, "praia.png", png((0, 90, 200), (128, 96)))
     _cid, rid = start(api, "aumente", [a["id"]], route="edit@turbo")
     ev = wait_event(api, rid, lambda e: e["type"] == "needs_input" and e.get("kind") == "outpaint")

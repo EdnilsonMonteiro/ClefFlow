@@ -7,10 +7,10 @@ nunca mexe. Cada addon é uma pasta `addons/<nome>/`. A ordem de prioridade dos 
 Criar um addon novo a partir do modelo:
 
 ```
-python -m clefflow addon new meu-addon        # ou: Ajustes > Addons > Criar addon
+python -m pickflow addon new meu-addon        # ou: Ajustes > Addons > Criar addon
 ```
 
-Reinicie o ClefFlow. O addon aparece em **Ajustes > Addons** (onde também liga e desliga). Código Python e telas só
+Reinicie o PickFlow. O addon aparece em **Ajustes > Addons** (onde também liga e desliga). Código Python e telas só
 valem depois de reiniciar; workflows, prompts e LoRAs do addon valem na hora.
 
 ## O que um addon pode ter
@@ -73,10 +73,10 @@ async def minha_acao(call):          # call: ActionCall
 `call` também traz `request`, `vars`, `drawings`, `prompt`, `llm`, `settings`. Para o Clef escolher o fluxo, descreva-o
 em `clef_prompt.yaml > workflows > meu_fluxo > description`.
 
-## web/main.js: `window.ClefFlow`
+## web/main.js: `window.PickFlow`
 
 ```js
-const CF = window.ClefFlow, h = CF.h;                      // h(tag, attrs, ...filhos) cria elementos (sem innerHTML)
+const CF = window.PickFlow, h = CF.h;                      // h(tag, attrs, ...filhos) cria elementos (sem innerHTML)
 CF.addButton({ label, title, onClick })                    // ao lado de "Anexar imagem"
 CF.addResultAction({ label, onClick(imagem) })             // em cada imagem de resultado
 CF.addView({ id, title, mount(container) })                // tela nova no menu
@@ -87,12 +87,12 @@ CF.addonApi('meu-addon', '/rota', { method, body })        // chama as rotas do 
 CF.config(nome) / CF.saveConfig(nome, obj)                 // configuração do addon
 CF.modal({ title, body, buttons }) · CF.toast(texto) · CF.api(caminho, opts)
 CF.setText(texto) · CF.attach(arquivo) · CF.send({ text })  // controlar a conversa
-CF.boxEditor({ img, color, multiple, … })                  // o editor de caixas do ClefFlow, para telas suas
+CF.boxEditor({ img, color, multiple, … })                  // o editor de caixas do PickFlow, para telas suas
 CF.state                                                   // conversa, imagens anexadas, ajustes, workflows (leitura)
 CF.lang · CF.tr(texto)                                     // idioma da interface ('en' | 'pt') e tradução pelo catálogo
 ```
 
-Texto vindo de fora entra no DOM com `textContent`/`h()`, nunca `innerHTML`. A interface abre em inglês: o ClefFlow traduz
+Texto vindo de fora entra no DOM com `textContent`/`h()`, nunca `innerHTML`. A interface abre em inglês: o PickFlow traduz
 na tela o que está no catálogo `web/locales/en.json`; para os textos do seu addon, escreva direto no idioma que quiser ou
 escolha pelo `CF.lang` (o que não está no catálogo aparece como foi escrito).
 
@@ -100,5 +100,5 @@ escolha pelo `CF.lang` (o que não está no catálogo aparece como foi escrito).
 
 - Prefixe ids (`meu_addon_…`), classes CSS e rotas com o nome do addon.
 - Conteúdo pessoal (prompts, LoRAs) fica aqui ou em `custom/`, nunca em `defaults/`.
-- `python -m clefflow addon new` e a skill **clefflow-addons** (`.claude/skills/clefflow-addons`) mostram o caminho
+- `python -m pickflow addon new` e a skill **pickflow-addons** (`.claude/skills/pickflow-addons`) mostram o caminho
   completo; Ajustes > Checagem dos workflows confere se as ações dos addons existem.

@@ -1,9 +1,9 @@
 ---
-name: clefflow-addons
-description: "Cria e edita addons do ClefFlow (pasta addons/, fora do git): fluxos novos em Python ou ComfyUI, ganchos de prompt e pedido, LLM, telas e botões novos na interface. Use quando o usuário pedir uma funcionalidade própria, um novo fluxo, uma nova tela ou ajuste no prompt sem mexer no código do ClefFlow."
+name: pickflow-addons
+description: "Cria e edita addons do PickFlow (pasta addons/, fora do git): fluxos novos em Python ou ComfyUI, ganchos de prompt e pedido, LLM, telas e botões novos na interface. Use quando o usuário pedir uma funcionalidade própria, um novo fluxo, uma nova tela ou ajuste no prompt sem mexer no código do PickFlow."
 ---
 
-# Addons do ClefFlow
+# Addons do PickFlow
 
 Um addon é uma pasta `addons/<nome>/` (o `.gitignore` ignora tudo ali, menos `addons/README.md`). Prioridade dos
 arquivos: **`custom/` > `addons/` > `defaults/`**. Nunca edite `defaults/` para uma necessidade pessoal e nunca ponha
@@ -13,15 +13,15 @@ usuário (`ComfyUI/user/default/workflows`): copie para `addons/<nome>/workflows
 ## 1. Comece pelo modelo
 
 ```
-python -m clefflow addon new meu-addon        # copia defaults/addon_template para addons/meu-addon
+python -m pickflow addon new meu-addon        # copia defaults/addon_template para addons/meu-addon
 ```
 
 (ou Ajustes > Addons > Criar addon). O modelo já traz uma ação, um gancho, uma rota, uma tela, um botão, um bloco de
-ajustes e a descrição para o Clef. Apague o que não usar. **Reinicie o ClefFlow** depois de mexer em `addon.py` ou
+ajustes e a descrição para o Clef. Apague o que não usar. **Reinicie o PickFlow** depois de mexer em `addon.py` ou
 `web/`; registros, prompts, workflows e LoRAs do addon valem na hora.
 
-Leia antes de mexer: `addons/README.md` (API completa), `clefflow/addons.py` (ctx, ganchos, LLM, ActionCall) e, para a
-interface, o bloco `window.ClefFlow` no fim de `web/app.js`.
+Leia antes de mexer: `addons/README.md` (API completa), `pickflow/addons.py` (ctx, ganchos, LLM, ActionCall) e, para a
+interface, o bloco `window.PickFlow` no fim de `web/app.js`.
 
 ## 2. O que o usuário quer → o que criar
 
@@ -31,10 +31,10 @@ interface, o bloco `window.ClefFlow` no fim de `web/app.js`.
 | Um fluxo novo feito em código (girar, recortar, filtro, juntar imagens, chamar API) | **ação**: registro `kind: action` + `@ctx.action` |
 | Um fluxo novo no ComfyUI | `workflows/*.json` + `registry/<id>.yaml` + `prompts/<id>.yaml` + descrição em `clef_prompt.yaml` |
 | LoRA nova | `loras.yaml` do addon (mesmo formato de `defaults/loras.yaml`) |
-| Botão, tela, janela, ajuste na interface | `web/main.js` com `window.ClefFlow` |
-| Pergunta ao usuário no meio de um fluxo | `await call.ask("tipo", ...)` no Python + `ClefFlow.registerInput("tipo", fn)` no JS |
+| Botão, tela, janela, ajuste na interface | `web/main.js` com `window.PickFlow` |
+| Pergunta ao usuário no meio de um fluxo | `await call.ask("tipo", ...)` no Python + `PickFlow.registerInput("tipo", fn)` no JS |
 | Guardar algo entre execuções | `ctx.load_data()` / `ctx.save_data()` |
-| Rota HTTP para o JS | `@ctx.router.get("/x")` → `ClefFlow.addonApi("meu-addon", "/x")` |
+| Rota HTTP para o JS | `@ctx.router.get("/x")` → `PickFlow.addonApi("meu-addon", "/x")` |
 
 ## 3. Ação (fluxo em Python), passo a passo
 
@@ -95,7 +95,7 @@ imagem de cada uma, `replace_redbox.yaml` para vários quadrados, `colar_recorta
 ## 5. Interface (`web/main.js`)
 
 ```js
-const CF = window.ClefFlow, h = CF.h;                   // h(tag, attrs, ...filhos); texto sempre via h/textContent
+const CF = window.PickFlow, h = CF.h;                   // h(tag, attrs, ...filhos); texto sempre via h/textContent
 CF.addButton({ label, onClick })                        // ao lado de "Anexar imagem"
 CF.addResultAction({ label, onClick: (imagem) => … })   // em cada resultado
 CF.addView({ id, title, mount(container) })             // item novo no menu
@@ -123,6 +123,6 @@ Prefixe ids e classes CSS com o nome do addon. Nunca use `innerHTML` com texto q
 ## Limites
 
 - Ganchos `plan`, `step_done` e `run_done` só observam. `request` e `prompt` devolvem o texto novo (ou `None`).
-- Um addon não troca código do ClefFlow; para mudar o comportamento de um fluxo padrão, copie o registro/prompt com o
+- Um addon não troca código do PickFlow; para mudar o comportamento de um fluxo padrão, copie o registro/prompt com o
   mesmo `id` dentro do addon (vale mais que `defaults/`) ou em `custom/` (vale mais que tudo).
 - Config do addon: `addon.yaml > config`, sobrescrita por `settings.yaml > addons.config.<nome>`.

@@ -153,11 +153,11 @@
     }
    },
    "widgets_values": [
-    "clefflow/splat",
+    "pickflow/splat",
     ""
    ],
    "widgets_values_named": {
-    "filename_prefix": "clefflow/splat"
+    "filename_prefix": "pickflow/splat"
    }
   },
   {
@@ -236,10 +236,10 @@
    "mode": 0,
    "inputs": [],
    "outputs": [],
-   "title": "ClefFlow: gerar o 3D",
+   "title": "PickFlow: gerar o 3D",
    "properties": {},
    "widgets_values": [
-    "## ClefFlow 3D - Gerar Splat (TripoSplat)\n\nCopia dos workflows *AnyAngle Camera 3D* e *Camera Quarto 3D*, so com a parte que gera o **Gaussian Splat** (.spz).\n\n- **switch = ON** (pessoa/objeto): remove o fundo com BiRefNet antes do 3D.\n- **switch = OFF** (ambiente/quarto): usa a foto inteira (mascara vazia).\n\nO ClefFlow mostra o 3D no navegador para a pessoa escolher o angulo; o render escolhido vira o *coarse* do workflow AnyAngle."
+    "## PickFlow 3D - Gerar Splat (TripoSplat)\n\nCopia dos workflows *AnyAngle Camera 3D* e *Camera Quarto 3D*, so com a parte que gera o **Gaussian Splat** (.spz).\n\n- **switch = ON** (pessoa/objeto): remove o fundo com BiRefNet antes do 3D.\n- **switch = OFF** (ambiente/quarto): usa a foto inteira (mascara vazia).\n\nO PickFlow mostra o 3D no navegador para a pessoa escolher o angulo; o render escolhido vira o *coarse* do workflow AnyAngle."
    ],
    "widgets_values_named": {
     "text": "## Qwen2.1 AnyAngle Camera 3D (TripoSplat)\n\nFluxo do autor do LoRA: **imagem -> modelo 3D (TripoSplat) -> escolher o angulo (CreateCameraInfo) -> render coarse (RenderSplat) -> Qwen 2.1 + AnyAngle**.\n\n1. **LoadImage** = sua imagem.\n2. O subgraph TripoSplat gera o **Gaussian Splat**.\n3. **CreateCameraInfo**: mude **yaw / pitch / distance** pra escolher o angulo. O **RenderSplat** mostra o 'coarse render' naquele angulo.\n4. A **Parte de baixo**: Qwen 2.1 + LoRA **AnyAngle (1.0)** com o prompt `Change the camera angle from <image2> to <image1>.` -> gera a imagem no novo angulo, mantendo o estilo.\n5. Saida em `output/qwen21_anyangle/`.\n\n### Ajustes\n- **AnyAngle LoRA** = 1.0 (recomendado). CFG 3.0, 20 passos (recomendado pelo autor).\n- **CreateCameraInfo**: 'orbit' + yaw/pitch/distance define a camera do render coarse.\n- Modelos: TripoSplat (triposplat_fp16 + dino_v3_vit_h + triposplat_vae_decoder + flux2-vae) + birefnet.\n"

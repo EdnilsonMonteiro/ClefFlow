@@ -5,9 +5,9 @@ from pathlib import Path
 
 import pytest
 
-from clefflow.converter import Converter, ConversionError
-from clefflow.doctor import check_api, validate_all, validate_workflow
-from clefflow.store import Store
+from pickflow.converter import Converter, ConversionError
+from pickflow.doctor import check_api, validate_all, validate_workflow
+from pickflow.store import Store
 
 ROOT = Path(__file__).resolve().parent.parent
 WF = ROOT / "defaults" / "workflows"
@@ -89,8 +89,8 @@ def test_rgthree_power_lora_loader(oi):
 
 def test_overrides_and_loader_upload(oi):
     wf = load("Qwen2.1 Image Edit Quality.json")
-    api = Converter(oi).convert(wf, {(6, "value"): "hello", (26, "image"): "clefflow/x.png"}, set(), "clefflow/x.png", {26})
-    assert api["6"]["inputs"]["value"] == "hello" and api["26"]["inputs"]["image"] == "clefflow/x.png"
+    api = Converter(oi).convert(wf, {(6, "value"): "hello", (26, "image"): "pickflow/x.png"}, set(), "pickflow/x.png", {26})
+    assert api["6"]["inputs"]["value"] == "hello" and api["26"]["inputs"]["image"] == "pickflow/x.png"
 
 
 def test_dropping_optional_image_removes_dotted_input_and_keeps_graph_valid(oi):
@@ -108,8 +108,8 @@ def test_dropping_required_chain_cascades_through_scalers(oi):
 def test_stale_loader_file_is_replaced_by_fallback(oi):
     oi2 = copy.deepcopy(oi)
     oi2["LoadImage"]["input"]["required"]["image"] = [["so_este.png"], {}]
-    api = Converter(oi2).convert(load("Qwen2.1 Image Edit Quality.json"), {}, set(), "clefflow/up.png", set())
-    assert api["26"]["inputs"]["image"] == "clefflow/up.png"         # o arquivo salvo no workflow não existe mais
+    api = Converter(oi2).convert(load("Qwen2.1 Image Edit Quality.json"), {}, set(), "pickflow/up.png", set())
+    assert api["26"]["inputs"]["image"] == "pickflow/up.png"         # o arquivo salvo no workflow não existe mais
 
 
 def test_missing_custom_node_is_reported(oi):
@@ -173,7 +173,7 @@ def test_original_files_are_never_modified(oi):
 def test_every_default_workflow_validates_against_real_object_info(project, oi):
     store = Store(project)
     results = validate_all(store, oi)
-    assert len(results) == 20          # 13 workflows (colar_recortar tem 3 modos); transfer_multi também tem 2 modos; edit, object_move, transfer_object, t2i e colar_recortar (pessoa, objeto) têm 2 modos
+    assert len(results) == 22          # 15 workflows (colar_recortar tem 3 modos); transfer_multi também tem 2 modos; edit, object_move, transfer_object, t2i e colar_recortar (pessoa, objeto) têm 2 modos
     bad = {r["id"]: r["errors"] for r in results if not r["ok"]}
     assert not bad, bad
     assert all(not r["warnings"] for r in results), [r for r in results if r["warnings"]]
@@ -222,7 +222,7 @@ def test_combo_value_without_subfolder_is_fixed(oi):
     assert c.fixes and c.fixes[0][3] == "bfs_head.safetensors"
 
 
-def test_missing_clefflow_node_points_to_installer(oi):
+def test_missing_pickflow_node_points_to_installer(oi):
     oi2 = {k: v for k, v in oi.items() if k != "DrawBox"}
     with pytest.raises(ConversionError, match="install_nodes"):
         Converter(oi2).convert(load("Qwen2.1 Transfer Object (2 imagens).json"))
@@ -237,7 +237,7 @@ def test_default_workflows_ship_no_personal_image_names():
 
 # ----------------------------------------------- imagens opcionais vazias não custam nada
 def _api_with(store, oi, wid, filled_keys):
-    from clefflow.converter import node_id
+    from pickflow.converter import node_id
     m = store.manifest(wid)
     wf = store.workflow_json(wid)
     drop = {str(n) for n in m.get("drop", [])}
@@ -287,7 +287,7 @@ def test_every_loadimage_in_defaults_is_connected():
 def test_trim_to_alpha_cuts_transparent_borders_and_rejects_opaque_or_empty():
     import io
     from PIL import Image
-    from clefflow.storage import NoTransparency, crop_fraction, trim_to_alpha
+    from pickflow.storage import NoTransparency, crop_fraction, trim_to_alpha
 
     def enc(im):
         b = io.BytesIO(); im.save(b, format="PNG"); return b.getvalue()
@@ -304,7 +304,7 @@ def test_place_layer_clips_the_part_outside_the_background_and_keeps_free_propor
 
     from PIL import Image
 
-    from clefflow.storage import place_layer
+    from pickflow.storage import place_layer
     buf = io.BytesIO()
     Image.new("RGBA", (40, 80), (255, 0, 0, 255)).save(buf, format="PNG")
     ov = buf.getvalue()
@@ -333,7 +333,7 @@ def test_cutout_states_and_lenient_trim():
 
     from PIL import Image
 
-    from clefflow.storage import NoTransparency, cutout_state, trim_to_alpha
+    from pickflow.storage import NoTransparency, cutout_state, trim_to_alpha
     def enc(im):                                                        # noqa: E301
         b = io.BytesIO()
         im.save(b, format="PNG")

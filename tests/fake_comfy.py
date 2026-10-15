@@ -26,6 +26,7 @@ class FakeComfy:
         self.prompts: dict[str, dict] = {}
         self.uploads: dict[str, bytes] = {}
         self.fail_node = fail_node
+        self.openpose = None                                  # sobrescreva para devolver outros pontos
         self.freed = 0
         self.view_rgba = False            # True: /view devolve um recorte com borda transparente (como o RMBG)
         self.views: dict[str, bytes] = {}  # nome do arquivo de saída -> PNG a devolver no /view
@@ -84,7 +85,7 @@ class FakeComfy:
                     name = f"up_{uuid.uuid4().hex[:6]}.png"
                     a = body.find(b"\x89PNG\r\n\x1a\n")
                     outer.uploads[name] = body[a:body.rfind(b"IEND") + 8] if a >= 0 else body
-                    return self._json({"name": name, "subfolder": "clefflow", "type": "input"})
+                    return self._json({"name": name, "subfolder": "pickflow", "type": "input"})
                 if p == "/prompt":
                     prompt = json.loads(body)["prompt"]
                     errs = outer._validate(prompt)
@@ -108,7 +109,7 @@ class FakeComfy:
 
     def _validate(self, prompt: dict) -> dict:
         """Mesma checagem do botão "Verificar workflows" (nós, entradas obrigatórias, ligações, limites)."""
-        from clefflow.doctor import check_api
+        from pickflow.doctor import check_api
         errs = {}
         for msg in check_api(prompt, self.oi):
             nid = msg.split("#", 1)[1].split(":", 1)[0].split()[0] if "#" in msg else "?"
@@ -130,6 +131,34 @@ class FakeComfy:
         for nid, node in prompt.items():
             if node["class_type"] in ("SaveImage", "PreviewImage", "SaveImageAdvanced"):
                 outs[nid] = {"images": [{"filename": f"out_{nid}.png", "subfolder": "", "type": "output" if node["class_type"] == "SaveImage" else "temp"}]}
+            elif node["class_type"] == "DWPreprocessor":                       # pontos do corpo (openpose_json) de duas pessoas de mentira
+                full = self.openpose or fake_openpose()
+                src = node["inputs"].get("image")
+                if isinstance(src, list) and prompt.get(str(src[0]), {}).get("class_type") == "SAM3Segment":
+                    # lote do SAM3: um quadro por pessoa separada
+                    frames = [{**fr, "people": [pp]} for fr in full for pp in fr["people"]] or [{**full[0], "people": []}]
+                else:
+                    frames = full
+                outs[nid] = {"openpose_json": [json.dumps(frames)]}
             elif node["class_type"] == "SaveGLB":
-                outs[nid] = {"3d": [{"filename": f"splat_{nid}.spz", "subfolder": "clefflow", "type": "output"}]}
+                outs[nid] = {"3d": [{"filename": f"splat_{nid}.spz", "subfolder": "pickflow", "type": "output"}]}
         return {pid: {"status": {"status_str": "success", "completed": True, "messages": []}, "outputs": outs}}
+
+
+def fake_openpose(width: int = 200, height: int = 300, centers=(0.3, 0.7)) -> list[dict]:
+    """O que o DWPreprocessor devolve: `[{people: [{pose_keypoints_2d: [x, y, c] * 18}], canvas_width, canvas_height}]`."""
+    people = []
+    for cx in centers:
+        # nariz, pescoço, ombros, cotovelos, punhos, quadris, joelhos, tornozelos, olhos e orelhas (pessoa de frente, braços caídos)
+        pts = [(0, -0.30), (0, -0.20), (-0.08, -0.18), (-0.09, -0.05), (-0.09, 0.06), (0.08, -0.18), (0.09, -0.05), (0.09, 0.06),
+               (-0.04, 0.05), (-0.04, 0.22), (-0.04, 0.38), (0.04, 0.05), (0.04, 0.22), (0.04, 0.38), (-0.015, -0.32), (0.015, -0.32),
+               (-0.03, -0.31), (0.03, -0.31)]
+        flat = []
+        for dx, dy in pts:
+            flat += [(cx + dx) * width, (0.5 + dy) * height, 1.0]
+        hands = {}
+        for key, wrist in (("hand_right_keypoints_2d", 4), ("hand_left_keypoints_2d", 7)):        # 21 pontos em leque a partir do punho
+            wx, wy = flat[3 * wrist], flat[3 * wrist + 1]
+            hands[key] = [v for i in range(21) for v in (wx + ((i % 5) - 2) * 0.004 * width, wy + (0.01 + (i // 5) * 0.012) * height, 1.0)]
+        people.append({"pose_keypoints_2d": flat, **hands})
+    return [{"people": people, "canvas_width": width, "canvas_height": height}]

@@ -1,4 +1,4 @@
-# CLAUDE.md — guia para trabalhar no ClefFlow
+# CLAUDE.md — guia para trabalhar no PickFlow
 
 Leia isto antes de mexer. Responda ao usuário em **português do Brasil**, de forma **concisa e prática** (ele é
 desenvolvedor, gosta de ir direto ao ponto). Termine entregas dizendo o que pode estar faltando ou o que ainda
@@ -6,22 +6,22 @@ não foi testado de verdade (ele roda o ComfyUI e o Clef reais; aqui só existem
 
 ## 1. O que é
 
-ClefFlow é um chat (FastAPI + página web em JavaScript puro, sem build) que fica na frente do **ComfyUI**.
+PickFlow é um chat (FastAPI + página web em JavaScript puro, sem build) que fica na frente do **ComfyUI**.
 A pessoa escreve o pedido e anexa imagens; o **Clef** (modelo que NÃO escreve texto: recebe um `state`, imagens e
 perguntas de múltipla escolha e devolve probabilidades) escolhe qual workflow do ComfyUI, ou qual sequência
-(caso de uso), rodar; o ClefFlow liga as imagens, monta o prompt, converte o workflow e executa no ComfyUI por HTTP.
+(caso de uso), rodar; o PickFlow liga as imagens, monta o prompt, converte o workflow e executa no ComfyUI por HTTP.
 Os workflows que acompanham o projeto usam **Qwen-Image 2.1** (editar, trocar pessoa/cabeça/roupa, mover e
 transferir objetos, recortar e colar, remover fundo, gerar do zero, expandir com Outpaint e mudar o ângulo da câmera com
 3D: TripoSplat + LoRA AnyAngle).
 
 ```
-Usuário → ClefFlow (porta 7860) → Clef (decide)      [clef.py, router.py]
+Usuário → PickFlow (porta 7860) → Clef (decide)      [clef.py, router.py]
                                → ComfyUI (executa)   [comfy.py, converter.py, runner.py]
                                → LLM opcional (redator de prompt, agente, fusão)   [addons.LLM, writer.py]
 ```
 
-Rodar: `start.bat` / `start.sh` (ou `python -m clefflow`). Testes: `python -m pytest -q` (**365 passam**; ~4 min).
-CLI extra: `python -m clefflow addon new <nome>`.
+Rodar: `start.bat` / `start.sh` (ou `python -m pickflow`). Testes: `python -m pytest -q` (**383 passam**; ~4 min).
+CLI extra: `python -m pickflow addon new <nome>`.
 
 ## 2. Regras duras (não quebre)
 
@@ -31,7 +31,7 @@ CLI extra: `python -m clefflow addon new <nome>`.
    antigo: não use nem edite.
 2. **Conteúdo pessoal ou adulto (prompts, LoRAs, textos, workflows) nunca vai para o repositório**: só `custom/` ou
    `addons/`. O teste `test_defaults_ship_no_personal_or_nsfw_text` vigia `defaults/`; mantenha-o passando.
-3. **Os `.json` de workflow nunca são alterados pelo ClefFlow**: ele converte uma cópia em memória a cada execução.
+3. **Os `.json` de workflow nunca são alterados pelo PickFlow**: ele converte uma cópia em memória a cada execução.
    Os workflows originais do usuário no ComfyUI (`ComfyUI/user/default/workflows`) **nunca** podem ser alterados;
    copie para `defaults/workflows/` ou `custom/workflows/`.
 4. **Não faça commit nem push** sem o usuário pedir. Quando pedir, termine o commit com as linhas de atribuição que
@@ -44,33 +44,34 @@ CLI extra: `python -m clefflow addon new <nome>`.
    servidor que vão para a conversa, nomes em `defaults/`) precisa da tradução em `web/locales/en.json`** (o inglês é o
    idioma padrão; `python tests/uitexts.py` lista o que falta). Texto montado em pedaços: traduza cada pedaço com `tr()`
    ou use um modelo com `{}` no catálogo. O que o Clef lê (descrições, `when`, `question`, instruções, `about` dos papéis, perguntas montadas no código) fica em
-   **inglês**; `name`/`label` são texto de tela (português) e passam por `clefflow/i18n.py: en()` ao entrar numa pergunta.
+   **inglês**; `name`/`label` são texto de tela (português) e passam por `pickflow/i18n.py: en()` ao entrar numa pergunta.
 
 ## 3. Mapa do código
 
 | Arquivo | Papel |
 |---|---|
-| `clefflow/app.py` | rotas FastAPI (`/api/...`), arquivos estáticos, SSE da execução, addons, casos de uso (agente/repetição/fusão) |
-| `clefflow/runner.py` | `Pipeline`: um turno do chat (`_turn`), passos (`_run_step`), ações Python (`_run_action`), recorte (`_review_cutout`), agente (`_agent_plan`), perguntas ao usuário (`ask_user`), encolher fotos grandes (`_shrink`) |
-| `clefflow/router.py` | `Router.plan` (rota + `then` + lacuna), `bind` (prompt, modo, LoRAs, variáveis, qual imagem entra em cada entrada), papéis (`resolve_roles`), `steps_from_route/recipe`, `consult`, `check_gap` |
-| `clefflow/clef.py` | cliente do Clef (`ClefClient`, formato System One), `MockClef` (palavras em comum), `choice_question`, `Answer` |
-| `clefflow/store.py` | leitura/escrita em camadas: settings, manifests, prompts, LoRAs, clef_prompt, casos de uso, camada do agente |
-| `clefflow/converter.py` | converte o JSON do ComfyUI (formato de UI) para a API, aplica overrides, subgraphs |
-| `clefflow/loras.py` | pilha de LoRAs (`effective_loras`), conflitos, ajustes do grafo (`knobs`), `compose` (monta o prompt) |
-| `clefflow/pvars.py` | variáveis de prompt (`choice`, `count`, `angle`, `pick`) e tokens |
-| `clefflow/compose.py`, `cutout.py` | caixas desenhadas, camadas posicionadas, megapixels; recorte de pessoa (SAM3 + RMBG) |
-| `clefflow/splats.py` | modelos 3D (`.spz`) em `data/splats/` com a foto de origem; chave = conteúdo da foto + tipo (a mesma foto não é gerada de novo); biblioteca (`saved`, 12 não guardados) |
-| `clefflow/llm.py`, `envfile.py`, `writer.py` | LLM do redator/agente/addons: `settings.writer.providers` (vários provedores, cada um com `models[{id, vision}]` e `key_env`) + `active`; a chave só no `.env` (`envfile.set_var`, rotas `PUT /api/env`, `GET /api/llm`, `POST /api/llm/test`); `llm.chat` trata `max_tokens`/`max_completion_tokens`, 401 explicado; `writer.refine` manda as imagens do passo se o modelo é `vision` e avisa falhas (`notify`) |
-| `clefflow/addons.py` | sistema de addons, classe `LLM` (OpenAI-compatível), `ActionCall` |
-| `clefflow/recipe_agent.py` | agente que cria casos de uso (`RecipeAgent`), `check_recipe`, `recipe_overlap`, `recipe_signature` |
-| `clefflow/recipe_merge.py` | nota de repetição (`score_pairs`) e fusão por LLM (`merge_recipes`, `apply_merge`) |
-| `clefflow/setup.py`, `hf.py`, `install_nodes.py` | assistente de instalação (nós, LoRAs, modelos) |
-| `clefflow/doctor.py`, `importer.py` | "Verificar workflows" e importar workflow novo |
-| `web/app.js`, `web/style.css`, `web/index.html` | interface inteira (um arquivo JS, funções `mountX`, modais, `window.ClefFlow` para addons) |
+| `pickflow/app.py` | rotas FastAPI (`/api/...`), arquivos estáticos, SSE da execução, addons, casos de uso (agente/repetição/fusão) |
+| `pickflow/runner.py` | `Pipeline`: um turno do chat (`_turn`), passos (`_run_step`), ações Python (`_run_action`), recorte (`_review_cutout`), agente (`_agent_plan`), perguntas ao usuário (`ask_user`), encolher fotos grandes (`_shrink`) |
+| `pickflow/router.py` | `Router.plan` (rota + `then` + lacuna), `bind` (prompt, modo, LoRAs, variáveis, qual imagem entra em cada entrada), papéis (`resolve_roles`), `steps_from_route/recipe`, `consult`, `check_gap` |
+| `pickflow/clef.py` | cliente do Clef (`ClefClient`, formato System One), `MockClef` (palavras em comum), `choice_question`, `Answer` |
+| `pickflow/store.py` | leitura/escrita em camadas: settings, manifests, prompts, LoRAs, clef_prompt, casos de uso, camada do agente |
+| `pickflow/converter.py` | converte o JSON do ComfyUI (formato de UI) para a API, aplica overrides, subgraphs |
+| `pickflow/loras.py` | pilha de LoRAs (`effective_loras`), conflitos, ajustes do grafo (`knobs`), `compose` (monta o prompt) |
+| `pickflow/pvars.py` | variáveis de prompt (`choice`, `count`, `angle`, `pick`) e tokens |
+| `pickflow/pose.py` | poses de pessoas: `parse` (DWPose -> 18 pontos em frações), `usable` (tira repetidas/minúsculas, ordena da esquerda para a direita), `draw` (mapa OpenPose), `describe` (frase em inglês do que mudou), `clean` (valida o que vem da tela) |
+| `pickflow/compose.py`, `cutout.py` | caixas desenhadas, camadas posicionadas, megapixels; recorte de pessoa (SAM3 + RMBG) |
+| `pickflow/splats.py` | modelos 3D (`.spz`) em `data/splats/` com a foto de origem; chave = conteúdo da foto + tipo (a mesma foto não é gerada de novo); biblioteca (`saved`, 12 não guardados) |
+| `pickflow/llm.py`, `envfile.py`, `writer.py` | LLM do redator/agente/addons: `settings.writer.providers` (vários provedores, cada um com `models[{id, vision}]` e `key_env`) + `active`; a chave só no `.env` (`envfile.set_var`, rotas `PUT /api/env`, `GET /api/llm`, `POST /api/llm/test`); `llm.chat` trata `max_tokens`/`max_completion_tokens`, 401 explicado; `writer.refine` manda as imagens do passo se o modelo é `vision` e avisa falhas (`notify`) |
+| `pickflow/addons.py` | sistema de addons, classe `LLM` (OpenAI-compatível), `ActionCall` |
+| `pickflow/recipe_agent.py` | agente que cria casos de uso (`RecipeAgent`), `check_recipe`, `recipe_overlap`, `recipe_signature` |
+| `pickflow/recipe_merge.py` | nota de repetição (`score_pairs`) e fusão por LLM (`merge_recipes`, `apply_merge`) |
+| `pickflow/setup.py`, `hf.py`, `install_nodes.py` | assistente de instalação (nós, LoRAs, modelos) |
+| `pickflow/doctor.py`, `importer.py` | "Verificar workflows" e importar workflow novo |
+| `web/app.js`, `web/style.css`, `web/index.html` | interface inteira (um arquivo JS, funções `mountX`, modais, `window.PickFlow` para addons) |
 | `web/i18n.js`, `web/locales/en.json` | idioma da interface (`settings.ui.language`, `en` padrão): um `MutationObserver` traduz nós de texto e `title/placeholder/aria-label/alt/label` pelo catálogo (`strings` exatos + `templates` com `{}`, pedaços traduzidos recursivamente); não toca `input/textarea` (só os atributos), `code/pre` e `translate="no"`; `tr()` no app.js para textos montados e valores de campo; `alert/confirm/prompt` traduzidos |
 | `web/splat.js`, `web/vendor/` | visualizador 3D (three.js + Spark, embutidos; mapa de import no `index.html`), carregado sob demanda por `splatStage` |
 | `defaults/` | `workflows/*.json`, `registry/<id>.yaml`, `prompts/<id>.yaml`, `loras.yaml`, `models.yaml`, `clef_prompt.yaml`, `addon_template/` |
-| `.claude/skills/clefflow-addons/SKILL.md` | como criar addons (leia se o pedido for uma extensão pessoal) |
+| `.claude/skills/pickflow-addons/SKILL.md` | como criar addons (leia se o pedido for uma extensão pessoal) |
 
 ## 4. Como um pedido vira imagens (fluxo de `Pipeline._turn`)
 
@@ -141,7 +142,7 @@ desligado por padrão), `addons`, `agent`.
 
 Pasta `addons/<nome>/` (fora do git) com recursos no mesmo formato de `defaults/` e/ou `addon.py` com
 `register(ctx)` (ganchos `request`, `prompt`, `plan`, `step_done`, `run_done`; ações Python; rotas; `ctx.llm`) e/ou
-`web/main.js` usando `window.ClefFlow`. Detalhes em `addons/README.md` e na skill `clefflow-addons`.
+`web/main.js` usando `window.PickFlow`. Detalhes em `addons/README.md` e na skill `pickflow-addons`.
 Uma ação (`kind: action`) é um fluxo em Python sem ComfyUI.
 
 ## 7. Interface (`web/app.js`)
@@ -177,8 +178,8 @@ Ler `textContent` de volta devolve o texto JÁ traduzido: não compare com texto
   desliga realismo, 2 MP; some se a LoRA for escondida (`requires`).
 
 - **3D (mudar o ângulo)**: workflows `ambiente_3d` (rota; TripoSplat com a foto inteira) e `pessoa_3d` (interno; BiRefNet
-  recorta) usam a MESMA cópia `ClefFlow 3D - Gerar Splat (TripoSplat).json` (o `set` muda o `switch` do subgraph);
-  `anyangle` (interno) usa `ClefFlow 3D - AnyAngle (mudar camera).json`. Caso de uso `pessoa_angulo` = pessoa_3d -> anyangle.
+  recorta) usam a MESMA cópia `PickFlow 3D - Gerar Splat (TripoSplat).json` (o `set` muda o `switch` do subgraph);
+  `anyangle` (interno) usa `PickFlow 3D - AnyAngle (mudar camera).json`. Caso de uso `pessoa_angulo` = pessoa_3d -> anyangle.
   `pessoa_angulo_troca` (2 imagens, papéis person/reference) acrescenta o `edit`/`trocar_pessoas` (people 1, escopo pelo Clef;
   o `request` do passo pede só a cabeça quando a referência é um rosto) para recuperar a identidade que o splat perde.
   Ordem testada no ComfyUI real: image1 = original, image2 = render, prompt "Change the camera angle from <image1> to
@@ -199,11 +200,12 @@ Ler `textContent` de volta devolve o texto JÁ traduzido: não compare com texto
   Consistency em 0,6 a pessoa substituída ficava por baixo da colada. Texto genérico sozinho é pouco confiável para
   "no lugar de fulano" (às vezes some outro personagem); o redator com visão, que descreve quem sai, funcionou melhor.
 - **Transferir × colar (testado com gerações reais)**: `Router._paste_intent` — com 2 imagens e rota em `PASTE_FAMILY`, pergunta
-  `paste_intent` (outra | substituir | segurar | acrescentar; 28/29 no Clef real) e move a rota: substituir/segurar →
+  `paste_intent` (outra | trocar | substituir | segurar | acrescentar; 28/29 no Clef real, antes de `trocar`) e move a rota: trocar (o pedido diz "face and body", "body swap", "head swap") → o editor (`edit`, prompt Trocar pessoas; o `then` nunca repete a rota que o Clef tinha ao responder); substituir/segurar →
   `transfer_object` (com `vars.relacao`), acrescentar → Colar e fundir. `transfer_object` tem a variável `relacao`
   (adicionar | substituir) e o preset `pessoa` aceita pose do pedido. Recorte que encosta na borda (`storage.cut_edges`, faixa de
   2%) + `on_partial` no registro do recorte → a fusão recebe `corpo: completar`. Entradas com alfa vão achatadas em branco
   (`flatten_alpha`), salvo camada posicionada, máscara ou `keep_alpha` na entrada.
+- **Mudar a pose** (`mudar_pose`, 1 imagem): `pose_detectar` (registro com `pose: {nodes: [lote, inteira]}`: `SAM3Segment` em modo *Separate* dá uma imagem por pessoa e o DWPreprocessor roda no lote (um quadro do `openpose_json` por pessoa); outro DWPreprocessor na foto inteira é a reserva; `pose.combine` junta: vale o do lote, sem deduplicar pessoas coladas, e só entram da foto inteira as que não caem em cima de uma já achada. Testado: na foto de duas pessoas se beijando o DWPose sozinho dava UM esqueleto misturado; com o SAM 3 saíram dois certos) -> `_pose_choose` abre `needs_input` kind `pose` (`poseModal`: SVG, ossos de tamanho fixo, filhos acompanham, Alt/Shift) -> devolve o mapa de pose (`pose.draw`, de todas as pessoas) como imagem, com `pose_text`; `_on_pose` troca `{pose_change}` no `request` dos passos seguintes. **Mãos:** `parse` guarda, depois dos 18 pontos do corpo, 21 pontos de cada mão (`HAND_L`, `HAND_R`; o DWPreprocessor roda com `detect_hand` ligado); a tela e `clean` só veem os 18 (`[:BODY]`), `with_hands` leva a mão do detector junto com o antebraço (ou usa `HAND_TEMPLATE`, mão aberta, se o braço mexeu e o detector não viu a mão) e `draw` pinta os dedos no mapa; sem isso o Union só tem o ponto do punho e desenha uma luva sem dedos (testado: mão levantada saía lisa, agora tem 5 dedos). **Pixels originais:** o Union redesenha a foto toda a ~1 MP e as mãos de quem não mexeu saíam borradas; `pose_blend: true` no registro faz o runner aplicar `compose.blend_masked` com `pose.change_mask` (ossos que mexeram, lugar antigo e novo, mão/pé e cabeça, borda suavizada) e o resto volta a ser o pixel da original. `pose.describe` cobre braços/pernas (giro > 12° ou tamanho > 20%), cabeça, tronco e deslocamento do corpo todo, e dá uma frase geral para ajuste pequeno: a tela conta qualquer ponto mexido (`changed`, 0,4% da foto) e o fluxo só recusa com "Nenhuma pose foi alterada" quando NADA mexeu (antes recusava tudo que não fosse um membro girando muito). Mover o corpo todo (arrastar o pescoço) não apaga o corpo antigo: só descreve. **Membro antigo:** o ControlNet só desenha o membro novo e o antigo ficava duplicado; `_pose_erase` roda `replace_redbox`/`remover` (nested `_run_step` com `forced={"red": caixas}`) sobre `pose.erase_boxes` (um quadrado por membro que mexeu, mão/pé incluídos) com o texto de `pose.erase_text`, e guarda o resultado em `run.pose_reference`; `pose_aplicar` (registro `pose_reference: image_1`) usa essa foto como referência. **Descartado em testes reais:** máscara de inpaint do Union (deixa o cinza na imagem), referência com o membro em cinza + Union (cinza fica; só funcionou com a semente 43), e Outpaint em cima do cinza (recria o braço, 3/3, porque a cena "pede" um). `pose_aplicar` = ControlNet Union (`QwenImage21UnionApply`, modo Pose) com a foto como referência. **Testado no ComfyUI real:** com o mapa e o prompt genérico quase nada mudava; com a frase de `pose.describe` o braço levantou e os outros ficaram iguais. Força 1,0 (1,6 gerava manchas). Corpo só (sem mãos/rosto). `min_area` 0,01 corta crianças minúsculas do fundo.
 - **Colar com papéis**: `colar_e_fundir`/`colar_sem_fundir` usam os papéis `background` e `subject` (a ordem de envio não
   importa; o "invertido" saiu). O recorte (`colar_recortar`) tem modos `pessoa` (SAM3+RMBG), `objeto` (SAM3 pelo nome,
   `max_segments: 1`) e `fundo` (RMBG); o texto do SAM3 vem das variáveis `alvo` (nome em inglês, que fixa o modo) e `cor`.
@@ -216,7 +218,7 @@ Ler `textContent` de volta devolve o texto JÁ traduzido: não compare com texto
 - fixtures `project` (cópia de `defaults/`), `comfy`, `api` (TestClient + pipeline) em `conftest.py`/`test_e2e.py`;
   helpers `upload`, `start(route=...)`, `wait_event`, `_answer`, `_chain` (LoRAs do grafo enviado);
 - `Stub` de Clef que escolhe a opção pela id da pergunta (`preset`, `var_<key>`, `route`, `then`, `q` do agente,
-  `lora_<id>`) — troque o Clef do pipeline com `monkeypatch.setattr("clefflow.runner.make_clef", ...)`;
+  `lora_<id>`) — troque o Clef do pipeline com `monkeypatch.setattr("pickflow.runner.make_clef", ...)`;
 - `FakeLLM` roteirizado (`tests/test_agent.py`) — troque com `api.pipe.llm = ...`;
 - o `MockClef` dá respostas quase uniformes: não use para testar decisões.
 
@@ -250,4 +252,4 @@ reinicie o demo.
 2. Mexeu na interface? Suba o demo e olhe capturas de tela.
 3. Atualize `README.md` (e esta página, se a arquitetura mudou) e a skill se mudou algo de addons.
 4. Diga ao usuário o que não foi testado no ComfyUI/Clef reais e o que reiniciar (mudanças em `.py` e `web/` exigem
-   reiniciar o ClefFlow; registros, prompts, LoRAs e workflows valem na hora).
+   reiniciar o PickFlow; registros, prompts, LoRAs e workflows valem na hora).

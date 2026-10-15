@@ -20,7 +20,7 @@ from jsstrings import ui_texts  # noqa: E402
 # textos que parecem português mas não são de interface (nomes próprios, código, exemplos neutros)
 IGNORE = {
     "use strict", "Load Image", "ComfyUI", "Clef", "Workflow", "LoRA", "LoRAs", "Prompt", "GitHub", "Node", "Addons",
-    "Anthropic", "Groq", "Google Gemini", "Natural Exposure", "Shift + `", "Shift / Alt", "Shift + 4 / 6", "ClefFlow",
+    "Anthropic", "Groq", "Google Gemini", "Natural Exposure", "Shift + `", "Shift / Alt", "Shift + 4 / 6", "PickFlow",
     "Português (Brasil)", "btn secondary hidden", "btn secondary sm", "modal wide splat-modal", "natexp = 0\nflymy = 0.3",
     '[addon] erro em "{}":',
 }

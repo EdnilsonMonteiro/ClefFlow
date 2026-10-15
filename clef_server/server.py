@@ -118,7 +118,7 @@ def create_app(holder: Holder) -> FastAPI:
 
     @app.get("/health")
     async def health():
-        """O ClefFlow lê `loaded` e `vram.allocated_gb` para decidir se precisa descarregar o Clef antes de gerar."""
+        """O PickFlow lê `loaded` e `vram.allocated_gb` para decidir se precisa descarregar o Clef antes de gerar."""
         out = {"ok": True, "model": holder.model_id, "loaded": holder.model is not None, "device": holder.device}
         try:
             import torch

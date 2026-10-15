@@ -6,7 +6,7 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 import pytest
 
-from clefflow.clef import ClefClient, ClefError, choice_question
+from pickflow.clef import ClefClient, ClefError, choice_question
 from PIL import Image
 import io
 

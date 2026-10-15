@@ -1,4 +1,4 @@
-"""Chaves de API no arquivo `.env` da pasta do ClefFlow (o git ignora). A interface grava e apaga linhas daqui, mas nunca
+"""Chaves de API no arquivo `.env` da pasta do PickFlow (o git ignora). A interface grava e apaga linhas daqui, mas nunca
 recebe a chave de volta: só sabe se ela existe."""
 from __future__ import annotations
 

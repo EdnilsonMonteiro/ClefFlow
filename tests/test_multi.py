@@ -127,7 +127,7 @@ def test_big_phone_photos_are_shrunk_before_anything_else_and_the_user_is_told(a
 
 
 def test_the_limit_can_be_turned_off_in_settings(api, project):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(project).save_settings({"comfyui": {"max_input_mp": 0}})
     big = upload(api, "celular.png", png((90, 90, 90), (3000, 2000)))
     _, rid = start(api, "x", [big["id"]], route="replace_redbox")
@@ -181,7 +181,7 @@ def test_a_middle_object_image_without_a_box_stays_so_the_numbering_has_no_hole(
 
 
 def test_fit_megapixels_keeps_small_images_untouched_and_the_aspect_of_big_ones():
-    from clefflow.compose import fit_megapixels
+    from pickflow.compose import fit_megapixels
     small = png((1, 2, 3), (100, 50))
     assert fit_megapixels(small, 2.0) == (small, (100, 50))
     data, (w, h) = fit_megapixels(png((1, 2, 3), (4032, 3024)), 2.0)

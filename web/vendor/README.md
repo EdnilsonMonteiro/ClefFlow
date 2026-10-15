@@ -1,6 +1,6 @@
 # Bibliotecas de terceiros (sem build, servidas por /static/vendor/)
 
-Usadas só pelo visualizador 3D (`web/splat.js`), carregado sob demanda. Ficam aqui para o ClefFlow funcionar sem internet.
+Usadas só pelo visualizador 3D (`web/splat.js`), carregado sob demanda. Ficam aqui para o PickFlow funcionar sem internet.
 
 | Pasta | Pacote | Versão | Licença | Arquivos |
 |---|---|---|---|---|

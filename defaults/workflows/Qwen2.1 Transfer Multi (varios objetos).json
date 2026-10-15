@@ -25,7 +25,7 @@
     "Node name for S&R": "MarkdownNote"
    },
    "widgets_values": [
-    "Qualidade (25 passos). Vários objetos: Image 1 = destino com caixas VERDES numeradas; Image 2.. = objetos, cada um com sua caixa VERMELHA. O ClefFlow desenha as caixas."
+    "Qualidade (25 passos). Vários objetos: Image 1 = destino com caixas VERDES numeradas; Image 2.. = objetos, cada um com sua caixa VERMELHA. O PickFlow desenha as caixas."
    ],
    "widgets_values_named": {
     "text": "## Qwen-Image-2.1 Transfer (2 imagens)\n\nEnvie um OBJETO (ou uma PARTE DO CORPO) de uma imagem para outra, desenhando as caixas na mao.\n\n### Como usar\n- **Image 1 - DESTINO (cena)**: a imagem que recebe o objeto. Desenhe a **CAIXA VERDE** onde ele vai ficar.\n- **Image 2 - FONTE (objeto)**: a imagem que tem o objeto/parte do corpo. Desenhe a **CAIXA VERMELHA** em cima dele.\n- Cada imagem tem seu proprio canvas interativo:\n  - **Arraste** no canvas -> redesenha a caixa daquele node.\n  - **Arraste por dentro** -> move; **canto inferior direito** -> redimensiona.\n  - (Os campos numericos embaixo sao um fallback.)\n- Rode **Queue** -> a cena (Image 1) recebe o objeto, integrado com luz/perspectiva dela.\n\n### Prompt (amplo)\n- Serve para objetos em geral E partes do corpo (cabeca, mao, roupa, acessorio...).\n- Ajuste o texto se quiser (\"the woman's head from...\", \"the vase from...\", etc.).\n\n### Motor\n- Modelo base Qwen 2.1 (estilo do Space do linoyts: caixas + prompt, sem LoRA de move).\n- **KSampler**: 25 passos, cfg 2.5, euler/simple. O resultado segue o enquadramento da **Image 1**.\n\n### Memoria\n- int8 + `--disable-fast-disk`.\n"

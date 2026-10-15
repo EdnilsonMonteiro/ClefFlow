@@ -36,4 +36,4 @@ def comfy(oi):
 @pytest.fixture(autouse=True)
 def _no_real_comfyui_on_this_machine(monkeypatch):
     """Os testes nunca podem achar (e mexer em) o ComfyUI de verdade de quem roda a suíte."""
-    monkeypatch.setattr("clefflow.setup._heuristic_roots", lambda: [])
+    monkeypatch.setattr("pickflow.setup._heuristic_roots", lambda: [])

@@ -1,4 +1,4 @@
-/* ClefFlow: visualizador de Gaussian Splat (.spz) no navegador, com three.js + Spark (web/vendor/).
+/* PickFlow: visualizador de Gaussian Splat (.spz) no navegador, com three.js + Spark (web/vendor/).
    Carregado sob demanda por app.js (import dinâmico). O splat vem no referencial 3DGS (Y para baixo, Z para a frente);
    girado 180° em X ele fica no mesmo mundo do three.js e do CreateCameraInfo do ComfyUI (Y para cima). No TripoSplat a
    foto fica de frente para +X (no ComfyUI: yaw 90°, pitch 0); o splat ainda gira -90° em Y para a foto ficar de frente

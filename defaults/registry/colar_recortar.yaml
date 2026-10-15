@@ -2,18 +2,18 @@
 # Etapa 1 do "Colar + Fundir": recorta SÓ a pessoa ou o objeto e devolve um PNG com fundo transparente.
 # O Clef escolhe o modo pelo pedido (e você pode trocar na tela de revisão):
 #   pessoa  SAM3 com o texto "person" (nó SAM3Segment do pacote ComfyUI-RMBG): isola a pessoa mesmo em cena cheia.
-#           O RMBG-2.0 roda junto e o ClefFlow soma as duas máscaras (clefflow/cutout.py): partes do corpo que o SAM3
+#           O RMBG-2.0 roda junto e o PickFlow soma as duas máscaras (pickflow/cutout.py): partes do corpo que o SAM3
 #           deixou de fora (pele à mostra, mãos, pés, um braço) voltam, sem levar móveis ou objetos ao redor
 #   objeto  SAM3 com o NOME do objeto (e a cor, se o pedido disser), em inglês: o Clef escolhe numa lista (prompt
 #           "Recortar", variáveis `alvo` e `cor`). Recorta só aquela coisa mesmo com outras em volta; fica só com o
 #           segmento mais provável (max_segments 1: um reflexo no espelho ou outra cadeira não vêm junto)
 #   fundo   RMBG-2.0: tira o fundo da imagem inteira (foto de produto, um objeto só num fundo liso)
 # O modo vem da opção escolhida em `alvo` (pessoa -> pessoa; um objeto da lista -> objeto; "sozinho" -> fundo).
-# Depois do recorte o ClefFlow mostra o resultado: você aceita, ou desenha uma caixa no original para refazer só ali.
+# Depois do recorte o PickFlow mostra o resultado: você aceita, ou desenha uma caixa no original para refazer só ali.
 # É um passo interno: o Clef só o usa dentro dos casos de uso "Colar...". Veja clef_prompt.yaml.
 
 id: colar_recortar
-file: ClefFlow Colar - Recortar Pessoa.json
+file: PickFlow Colar - Recortar Pessoa.json
 title: Colar - recortar a pessoa ou o objeto
 group: colagem
 internal: true
@@ -43,7 +43,7 @@ on_partial:
   modes:
   - pessoa
 note: Usa nós do pacote ComfyUI-RMBG (RMBG e SAM3Segment; o SAM3 baixa o modelo sam3.pt sozinho na primeira vez). Depois
-  do recorte o ClefFlow corta as bordas transparentes, para o tamanho que você ajusta no chat ser o da própria pessoa.
+  do recorte o PickFlow corta as bordas transparentes, para o tamanho que você ajusta no chat ser o da própria pessoa.
 requires_nodes:
 - class: RMBG
   pack: ComfyUI-RMBG
@@ -56,7 +56,7 @@ outputs:
 modes:
   pessoa:
     title: Pessoa
-    file: ClefFlow Colar - Recortar Pessoa.json
+    file: PickFlow Colar - Recortar Pessoa.json
     outputs:
     - 14
     - 15
@@ -65,7 +65,7 @@ modes:
       woman, man, model, she, he.'
   objeto:
     title: Objeto
-    file: ClefFlow Colar - Recortar Pessoa.json
+    file: PickFlow Colar - Recortar Pessoa.json
     drop:
     - 5
     - 15
@@ -79,6 +79,6 @@ modes:
       others around).
   fundo:
     title: Tirar o fundo
-    file: ClefFlow Colar - Recortar.json
+    file: PickFlow Colar - Recortar.json
     prompt:
     when: 'The image is just the object on a plain background (product photo): removes the whole background with RMBG.'

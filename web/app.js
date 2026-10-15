@@ -1,4 +1,4 @@
-/* ClefFlow: interface web (sem build). Todo conteúdo do usuário entra no DOM via textContent. */
+/* PickFlow: interface web (sem build). Todo conteúdo do usuário entra no DOM via textContent. */
 'use strict';
 
 // ------------------------------------------------------------------ helpers
@@ -68,13 +68,13 @@ const S = {
   settings: null, status: null, tray: [], route: 'auto', live: null, answered: new Set(), openKeys: new Set(), C: null,
 };
 const wfById = (id) => S.workflows.find((w) => w.id === id);
-// Pontos de extensão que os addons preenchem (veja window.ClefFlow mais abaixo).
+// Pontos de extensão que os addons preenchem (veja window.PickFlow mais abaixo).
 const AX = { buttons: [], resultActions: [], inputs: new Map(), settings: [], listeners: new Map(), info: [] };
 function AXemit(event, data) {
-  for (const fn of AX.listeners.get(event) || []) { try { fn(data, ClefFlow); } catch (e) { console.error(`[addon] erro em "${event}":`, e); } }
+  for (const fn of AX.listeners.get(event) || []) { try { fn(data, PickFlow); } catch (e) { console.error(`[addon] erro em "${event}":`, e); } }
 }
 function addonButtonEl(b) {
-  return h('button', { class: 'attach', type: 'button', title: b.title || '', onclick: () => { try { b.onClick(ClefFlow); } catch (e) { toast(String(e.message || e)); } } }, b.label);
+  return h('button', { class: 'attach', type: 'button', title: b.title || '', onclick: () => { try { b.onClick(PickFlow); } catch (e) { toast(String(e.message || e)); } } }, b.label);
 }
 
 async function loadAll() {
@@ -231,7 +231,7 @@ function setupCard() {
   const items = [];
   const actions = [];
   if (!st.comfy.ok) {
-    items.push(['O ComfyUI não está respondendo.', `O ClefFlow envia os pedidos para o ComfyUI, então ele precisa estar instalado e aberto. Abra-o e confira o endereço em Ajustes${st.comfy_detected_url ? ` (achei um em ${st.comfy_detected_url})` : ''}. Se ainda não tem, o assistente mostra como instalar.`]);
+    items.push(['O ComfyUI não está respondendo.', `O PickFlow envia os pedidos para o ComfyUI, então ele precisa estar instalado e aberto. Abra-o e confira o endereço em Ajustes${st.comfy_detected_url ? ` (achei um em ${st.comfy_detected_url})` : ''}. Se ainda não tem, o assistente mostra como instalar.`]);
     actions.push(h('button', { class: 'btn', onclick: () => setupModal() }, 'Abrir o assistente'));
   } else if (st.setup && st.setup.total > 0 && !st.setup.dismissed) {
     const p = st.setup, parts = [];
@@ -246,7 +246,7 @@ function setupCard() {
       } }, 'Agora não'));
   }
   if (!st.clef.ok) {
-    items.push(['O Clef não está respondendo.', 'Ligue o servidor do Clef (veja o README) ou, só para testar a interface, troque para o modo de teste em Ajustes.']);
+    items.push(['O Clef não está respondendo.', 'Ligue o servidor do Clef: abra clef_server/start_clef.bat (na primeira vez ele instala tudo sozinho) ou, só para testar a interface, troque para o modo de teste em Ajustes.']);
   } else if (st.clef.mode === 'mock') {
     items.push(['O Clef está em modo de teste.', 'Ele escolhe por palavras em comum, sem o modelo. Aponte para o servidor do Clef em Ajustes para decisões de verdade.']);
   }
@@ -357,7 +357,7 @@ function resultsView(images, small, actions = true) {
       h('button', { class: 'ghost sm', onclick: () => { S.tray.push(im); if (S.C) renderTray(); toast('Adicionada às imagens da próxima mensagem'); } }, 'Usar como entrada'),
       h('a', { class: 'ghost sm', href: im.url, download: im.name || 'resultado.png', style: 'text-decoration:none' }, 'Baixar'),
       im.splat ? h('button', { class: 'ghost sm', title: 'Abrir de novo o modelo 3D de onde este ângulo saiu', onclick: () => openSplatById(im.splat) }, 'Abrir o 3D') : null,
-      AX.resultActions.map((a) => h('button', { class: 'ghost sm', title: a.title || '', onclick: () => { try { a.onClick(im, ClefFlow); } catch (e) { toast(String(e.message || e)); } } }, a.label))) : null)));
+      AX.resultActions.map((a) => h('button', { class: 'ghost sm', title: a.title || '', onclick: () => { try { a.onClick(im, PickFlow); } catch (e) { toast(String(e.message || e)); } } }, a.label))) : null)));
 }
 function stateText(o, s, i) {
   const t = s.state === 'running' ? (o.pending ? 'aguardando você' : `gerando${s.elapsed ? ' ' + Math.round(s.elapsed) + ' s' : '…'}`)
@@ -508,10 +508,11 @@ async function openInput(ev) {
     if (ev.kind === 'draw') value = await drawModal(ev);
     else if (ev.kind === 'angle') value = await angleModal(ev);
     else if (ev.kind === 'outpaint') value = await outpaintModal(ev);
+    else if (ev.kind === 'pose') value = await poseModal(ev);
     else if (ev.kind === 'cutout') value = await cutoutModal(ev);
     else if (ev.kind === 'agent_recipe') value = await agentRecipeModal(ev);
     else if (ev.kind === 'splat') value = await splatModal(ev);
-    else if (AX.inputs.has(ev.kind)) value = await AX.inputs.get(ev.kind)(ev, ClefFlow);
+    else if (AX.inputs.has(ev.kind)) value = await AX.inputs.get(ev.kind)(ev, PickFlow);
     else value = await choiceModal(ev);
   } finally { OPEN_INPUTS.delete(ev.input_id); }
   if (value === null) { await cancelRun(); return; }
@@ -682,6 +683,124 @@ function angleModal(ev) {
     upd();
   });
 }
+// Mudar a pose: o esqueleto de cada pessoa (18 pontos do DWPose) sobre a foto. Arraste um ponto e o membro todo acompanha
+// (Alt: só o ponto; Shift: estica o osso). Devolve { people } com os pontos em frações; quem não mexeu continua como estava.
+const POSE_COLORS = ['#ff0000', '#ff5500', '#ffaa00', '#ffff00', '#aaff00', '#55ff00', '#00ff00', '#00ff55', '#00ffaa', '#00ffff',
+  '#00aaff', '#0055ff', '#0000ff', '#5500ff', '#aa00ff', '#ff00ff', '#ff00aa', '#ff0055'];
+const POSE_LIMBS = [[1, 2], [1, 5], [2, 3], [3, 4], [5, 6], [6, 7], [1, 8], [8, 9], [9, 10], [1, 11], [11, 12], [12, 13], [1, 0], [0, 14], [14, 16], [0, 15], [15, 17]];
+const POSE_PARENT = { 0: 1, 2: 1, 3: 2, 4: 3, 5: 1, 6: 5, 7: 6, 8: 1, 9: 8, 10: 9, 11: 1, 12: 11, 13: 12, 14: 0, 15: 0, 16: 14, 17: 15 };
+const POSE_MIRROR = [0, 1, 5, 6, 7, 2, 3, 4, 11, 12, 13, 8, 9, 10, 15, 14, 17, 16];
+// onde fica cada ponto que o detector não viu, em unidades do tronco (pescoço-quadril), partindo do ponto "pai"
+const POSE_GUESS = { 0: [0, -0.4], 2: [-0.28, 0.04], 5: [0.28, 0.04], 3: [0, 0.6], 6: [0, 0.6], 4: [0, 0.5], 7: [0, 0.5], 8: [-0.14, 1],
+  11: [0.14, 1], 9: [0, 0.9], 12: [0, 0.9], 10: [0, 0.9], 13: [0, 0.9], 14: [-0.05, -0.05], 15: [0.05, -0.05], 16: [-0.06, 0.02], 17: [0.06, 0.02] };
+function poseKids(i) {
+  const out = [i];
+  Object.entries(POSE_PARENT).forEach(([c, p]) => { if (p === i) out.push(...poseKids(Number(c))); });
+  return out;
+}
+function poseModal(ev) {
+  return new Promise((resolve) => {
+    const [W, H] = ev.size, SVG = 'http://www.w3.org/2000/svg';
+    const orig = ev.people.map((p) => p.map((q) => q.slice()));
+    const cur = ev.people.map((p) => p.map((q) => q.slice()));
+    const vis = (p) => p[2] >= 0.3;
+    const clamp01 = (v) => Math.max(0, Math.min(1, v));
+    const same = (a, b) => a.every((p, i) => vis(p) === vis(b[i]) && (!vis(p) || (Math.abs(p[0] - b[i][0]) < 0.004 && Math.abs(p[1] - b[i][1]) < 0.004)));
+    let sel = 0, close;
+    const sc = Math.min(1, Math.min(560, innerWidth - 420) / W, Math.max(260, innerHeight * 0.6) / H);
+    const SW = Math.round(W * sc), SH = Math.round(H * sc);
+    const svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('width', SW); svg.setAttribute('height', SH); svg.setAttribute('class', 'pose-svg');
+    const stage = h('div', { class: 'pose-stage', style: `width:${SW}px;height:${SH}px` }, h('img', { src: ev.image_url, alt: '', draggable: 'false' }), svg);
+    const chips = h('div', { class: 'chips' });
+    const status = h('div', { class: 'sm muted' });
+    const apply = h('button', { class: 'btn', disabled: true, onclick: () => { close(); resolve({ people: cur }); } }, 'Aplicar a pose');
+    const mk = (tag, attrs) => { const e = document.createElementNS(SVG, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); return e; };
+    const px = (p) => [p[0] * SW, p[1] * SH];
+
+    function render() {
+      svg.replaceChildren();
+      const order = cur.map((_, k) => k).sort((a, b) => (a === sel) - (b === sel));        // a selecionada por cima
+      order.forEach((k) => {
+        const P = cur[k], on = k === sel, g = mk('g', { opacity: on ? 1 : 0.4 });
+        POSE_LIMBS.forEach(([a, b], n) => {
+          if (!vis(P[a]) || !vis(P[b])) return;
+          const [x1, y1] = px(P[a]), [x2, y2] = px(P[b]);
+          g.append(mk('line', { x1, y1, x2, y2, stroke: POSE_COLORS[n], 'stroke-width': on ? 5 : 3, 'stroke-linecap': 'round' }));
+        });
+        P.forEach((p, i) => {
+          if (!vis(p)) return;
+          const [x, y] = px(p);
+          const dot = mk('circle', { cx: x, cy: y, r: on ? 6 : 4, fill: POSE_COLORS[i], stroke: '#fff', 'stroke-width': on ? 1.5 : 0.8 });
+          const hit = mk('circle', { cx: x, cy: y, r: 11, fill: 'transparent', class: 'pose-hit' });
+          hit.addEventListener('pointerdown', (e) => drag(k, i, e, hit));
+          g.append(dot, hit);
+        });
+        svg.append(g);
+      });
+      chips.replaceChildren(...cur.map((P, k) => h('button', { type: 'button', class: 'chip' + (k === sel ? ' on' : ''), onclick: () => { sel = k; render(); } },
+        tr(`Pessoa ${k + 1}`) + (same(P, orig[k]) ? '' : ' ✎'))));
+      const moved = cur.filter((P, k) => !same(P, orig[k])).length;
+      apply.disabled = !moved;
+      status.textContent = moved ? tr(`${moved} pessoa(s) com a pose alterada.`) : tr('Arraste os pontos de quem você quer mudar de pose.');
+    }
+    function drag(k, i, e, el) {
+      e.preventDefault(); sel = k; render();
+      const P = cur[k], start = P.map((p) => p.slice());
+      const par = POSE_PARENT[i];
+      const px2 = (p) => [p[0] * W, p[1] * H];
+      const len = par !== undefined && vis(start[par]) ? Math.hypot(...px2(start[i]).map((v, n) => v - px2(start[par])[n])) : null;
+      const kids = poseKids(i).filter((j) => vis(start[j]));
+      const r = svg.getBoundingClientRect();
+      const mv = (e2) => {
+        let nx = clamp01((e2.clientX - r.left) / SW), ny = clamp01((e2.clientY - r.top) / SH);
+        if (len && !e2.shiftKey) {                                   // o osso mantém o tamanho: o ponto gira em volta do pai
+          const [ax, ay] = px2(start[par]), dx = nx * W - ax, dy = ny * H - ay, d = Math.hypot(dx, dy) || 1;
+          nx = clamp01((ax + (dx * len) / d) / W); ny = clamp01((ay + (dy * len) / d) / H);
+        }
+        const dx = nx - start[i][0], dy = ny - start[i][1];
+        (e2.altKey ? [i] : kids).forEach((j) => { P[j][0] = clamp01(start[j][0] + dx); P[j][1] = clamp01(start[j][1] + dy); });
+        render();
+      };
+      const end = () => { window.removeEventListener('pointermove', mv); window.removeEventListener('pointerup', end); };
+      window.addEventListener('pointermove', mv); window.addEventListener('pointerup', end);
+    }
+    function mirror() {
+      const P = cur[sel]; if (!vis(P[1])) return;
+      const cx = P[1][0], old = P.map((p) => p.slice());
+      POSE_MIRROR.forEach((from, i) => { P[i] = [clamp01(2 * cx - old[from][0]), old[from][1], old[from][2]]; });
+      render();
+    }
+    function showMissing() {
+      const P = cur[sel], torso = vis(P[1]) && vis(P[8]) && vis(P[11]) ? Math.hypot((P[1][0] - (P[8][0] + P[11][0]) / 2) * W, (P[1][1] - (P[8][1] + P[11][1]) / 2) * H)
+        : (vis(P[2]) && vis(P[5]) ? Math.hypot((P[2][0] - P[5][0]) * W, (P[2][1] - P[5][1]) * H) * 1.5 : H * 0.25);
+      [0, 2, 5, 3, 6, 4, 7, 8, 11, 9, 12, 10, 13, 14, 15, 16, 17].forEach((i) => {
+        if (vis(P[i])) return;
+        const par = POSE_PARENT[i], base = par !== undefined ? P[par] : null;
+        if (!base || !vis(base)) return;
+        P[i] = [clamp01(base[0] + (POSE_GUESS[i][0] * torso) / W), clamp01(base[1] + (POSE_GUESS[i][1] * torso) / H), 1];
+      });
+      render();
+    }
+    const reset = (k) => { orig[k].forEach((p, i) => { cur[k][i] = p.slice(); }); render(); };
+    const cancel = () => { close(); resolve(null); };
+    close = openModal(h('div', { class: 'modal wide' },
+      h('header', null, h('h2', null, ev.title || 'Modele a pose'),
+        h('p', null, 'Cada pessoa da foto aparece como um esqueleto. Arraste os pontos para montar a nova pose: o membro todo acompanha. Quem você não mexer continua como está.')),
+      h('div', { class: 'body' }, h('div', { class: 'pose-row' }, h('div', { class: 'pose-wrap' }, stage),
+        h('div', { class: 'stack pose-side' }, h('b', null, 'Pessoa'), chips,
+          h('div', { class: 'row wrap' },
+            h('button', { class: 'chip', type: 'button', onclick: mirror, title: 'Vira a pose desta pessoa para o outro lado' }, 'Espelhar'),
+            h('button', { class: 'chip', type: 'button', onclick: showMissing, title: 'Acrescenta os pontos que o detector não viu (cortados pela borda da foto)' }, 'Mostrar pontos que faltam'),
+            h('button', { class: 'chip', type: 'button', onclick: () => reset(sel) }, 'Restaurar esta pessoa')),
+          h('p', { class: 'sm muted' }, 'Alt + arrastar mexe só no ponto. Shift + arrastar estica o osso. Arrastar o pescoço leva a pessoa inteira.'),
+          status))),
+      h('footer', null, h('button', { class: 'btn secondary', onclick: cancel }, 'Cancelar execução'), h('span', { class: 'grow' }),
+        h('button', { class: 'btn secondary', onclick: () => { cur.forEach((_, k) => reset(k)); } }, 'Restaurar tudo'), apply)), cancel);
+    render();
+  });
+}
+
 // Outpaint: a foto no meio de uma tela cinza (#808080) que a LoRA de Outpaint completa. A pessoa arrasta as bordas ou digita
 // quanto acrescentar em cada lado (em % do lado da foto), ou usa uma proporção pronta. Devolve {left, right, top, bottom}.
 function outpaintModal(ev) {
@@ -1319,7 +1438,7 @@ async function importModal(done) {
   if (!files.length) {
     body.replaceChildren(h('p', null, 'Nenhum arquivo novo encontrado.'),
       h('p', { class: 'muted' }, 'Copie o .json do seu workflow para ', h('code', null, ((S.status && S.status.custom_dir) || 'custom') + '/workflows'),
-        ' (pode usar subpastas) e abra esta janela de novo. O ClefFlow nunca altera nem apaga esses arquivos.'));
+        ' (pode usar subpastas) e abra esta janela de novo. O PickFlow nunca altera nem apaga esses arquivos.'));
     return;
   }
   const st = { file: files[0].file, d: null };
@@ -1406,7 +1525,7 @@ async function setupModal(onClose) {
   function nodeRow(n) {
     let text, cls;
     if (n.files === 'ok') [text, cls] = n.loaded === false ? ['copiado; reinicie o ComfyUI', 'warn'] : ['instalado', 'ok'];
-    else if (n.files === 'diferente') [text, cls] = ['diferente do que vem no ClefFlow', 'warn'];
+    else if (n.files === 'diferente') [text, cls] = ['diferente do que vem no PickFlow', 'warn'];
     else if (n.files === 'falta') [text, cls] = ['falta', 'warn'];
     else [text, cls] = n.loaded ? ['instalado', 'ok'] : ['falta', 'warn'];
     return h('div', { class: 'frow' }, h('span'), h('div', null, h('b', null, n.name === 'viggle_turbo.py' ? 'Viggle Turbo (LoRA e escalonador)' : 'Caixas vermelha e verde'),
@@ -1439,7 +1558,7 @@ async function setupModal(onClose) {
         `O endereço ${c.url} não é este computador, então o assistente não instala nada nele. Copie os arquivos abaixo para as pastas indicadas no computador do ComfyUI e reinicie-o.`));
     } else if (!data.can_install) {
       kids.push(h('div', { class: 'note guide' }, h('b', null, c.ok ? 'Não achei a pasta do ComfyUI neste computador.' : 'Não achei o ComfyUI neste computador.'),
-        h('p', null, 'O ClefFlow não gera imagens sozinho: ele pede ao ComfyUI. Para começar:'),
+        h('p', null, 'O PickFlow não gera imagens sozinho: ele pede ao ComfyUI. Para começar:'),
         h('ol', null,
           h('li', null, 'Instale o ComfyUI: ', extLink(data.links.download, 'ComfyUI Desktop (comfy.org/download)'), ' ou a ', extLink(data.links.github, 'versão manual no GitHub'), '.'),
           h('li', null, 'Abra o ComfyUI e espere carregar. O endereço padrão é http://127.0.0.1:8000 (Desktop) ou :8188 (manual); ajuste em Ajustes.'),
@@ -1451,22 +1570,22 @@ async function setupModal(onClose) {
       kids.push(h('div', { class: 'note ok' }, c.ok ? 'ComfyUI respondendo em ' : 'ComfyUI instalado, mas fechado agora. Endereço: ', h('b', null, c.url), ' · pasta: ', h('code', null, c.root), c.warn ? h('div', { class: 'msg err' }, c.warn) : null, chg));
     }
     // ---- nós
-    kids.push(h('h3', null, 'Nós do ClefFlow'));
+    kids.push(h('h3', null, 'Nós do PickFlow'));
     const needNodes = data.nodes.items.some((n) => n.files === 'falta' || n.files === 'diferente' || (n.files == null && n.loaded === false));
     kids.push(data.nodes.items.map(nodeRow));
     if (data.can_install && needNodes) {
       kids.push(h('div', { class: 'frow' }, h('input', { type: 'checkbox', 'aria-label': 'Instalar os nós', disabled: working, checked: nodes.on,
         onchange: (e) => { nodes.on = e.target.checked; renderFooter(); } }), h('div', null, h('b', null, 'Copiar os nós para o custom_nodes do ComfyUI'),
-        h('div', { class: 'hint' }, 'São arquivos pequenos do próprio ClefFlow. Depois de copiar, reinicie o ComfyUI.')), h('span')));
+        h('div', { class: 'hint' }, 'São arquivos pequenos do próprio PickFlow. Depois de copiar, reinicie o ComfyUI.')), h('span')));
       if (data.nodes.items.some((n) => n.files === 'diferente')) {
         kids.push(h('label', { class: 'radio sub-opt' }, h('input', { type: 'checkbox', disabled: working, checked: nodes.overwrite, onchange: (e) => { nodes.overwrite = e.target.checked; } }),
           ' Substituir também os arquivos que eu editei'));
       }
     }
-    // ---- nodes de outros autores (o ClefFlow não os instala)
+    // ---- nodes de outros autores (o PickFlow não os instala)
     if ((data.external || []).length) {
       kids.push(h('h3', null, 'Nodes de outros autores'),
-        h('p', { class: 'hint' }, 'Estes o ClefFlow não instala. Instale pelo ComfyUI Manager (Custom Nodes Manager) ou pelo GitHub do autor e reinicie o ComfyUI.'),
+        h('p', { class: 'hint' }, 'Estes o PickFlow não instala. Instale pelo ComfyUI Manager (Custom Nodes Manager) ou pelo GitHub do autor e reinicie o ComfyUI.'),
         data.external.map((e) => h('div', { class: 'frow' }, h('span'),
           h('div', null, h('b', null, e.pack), h('div', { class: 'meta' }, 'Node ', h('code', null, e.class), ' · usado em: ' + e.used_by.join(', '), ' · ', extLink(e.url, 'GitHub'))),
           h('span', { class: 'st ' + (e.loaded ? 'ok' : e.loaded === false ? 'warn' : '') }, e.loaded ? 'instalado' : e.loaded === false ? 'falta' : 'não verificado'))));
@@ -1870,7 +1989,7 @@ function mountLoras(main) {
         field('Descrição (o Clef lê isto para decidir quando usar)', h('textarea', { rows: 3, value: d.description, oninput: (e) => { d.description = e.target.value; } }),
           'Diga o que a LoRA faz e em que pedido ela entra. Quanto mais claro, melhor o Clef escolhe.'),
         field('Prompt padrão (acompanha a LoRA sempre que ela entrar)', h('textarea', { rows: 3, value: promptDefault, placeholder: 'ex.: body_swap: use the body from image 2…', oninput: (e) => { d.prompt = e.target.value; } }),
-          'Com redator (LLM) ativo, ele adapta este texto ao pedido. Sem redator, o ClefFlow junta este texto com o seu pedido.'),
+          'Com redator (LLM) ativo, ele adapta este texto ao pedido. Sem redator, o PickFlow junta este texto com o seu pedido.'),
         h('div', { class: 'row wrap' },
           h('div', { class: 'grow' }, field('Força', h('input', { type: 'number', step: 0.05, min: 0, max: 2, value: d.strength, oninput: (e) => { d.strength = e.target.value; } }), '0 desliga.')),
           h('div', { class: 'grow' }, field('Força do texto (CLIP)', h('input', { type: 'number', step: 0.05, min: 0, max: 2, value: d.strength_clip ?? '', placeholder: 'igual à força', oninput: (e) => { d.strength_clip = e.target.value; } }))),
@@ -1927,7 +2046,7 @@ function mountLoras(main) {
       } catch (e) { hf.msg = e.message; hf.bad = true; hf.busy = false; render(); }
     };
     return h('div', { class: 'card stack' }, h('h2', null, 'Baixar do Hugging Face'),
-      h('p', { class: 'sub' }, 'Cole o link da página do modelo ou de um arquivo .safetensors. O arquivo vai para a pasta de LoRAs do ComfyUI e entra na biblioteca. Se o repositório for restrito ou pedir para aceitar uma licença, crie um token em huggingface.co/settings/tokens e escreva HF_TOKEN=seu_token no arquivo .env da pasta do ClefFlow (copie o .env.example); depois reinicie o ClefFlow.'),
+      h('p', { class: 'sub' }, 'Cole o link da página do modelo ou de um arquivo .safetensors. O arquivo vai para a pasta de LoRAs do ComfyUI e entra na biblioteca. Se o repositório for restrito ou pedir para aceitar uma licença, crie um token em huggingface.co/settings/tokens e escreva HF_TOKEN=seu_token no arquivo .env da pasta do PickFlow (copie o .env.example); depois reinicie o PickFlow.'),
       h('div', { class: 'row' }, h('div', { class: 'grow' }, urlIn),
         h('button', { class: 'btn secondary', disabled: hf.busy || !hf.url.trim(), onclick: find }, 'Procurar')),
       hf.files ? h('div', { class: 'stack' },
@@ -2029,7 +2148,7 @@ function llmCard(s) {
       h('div', null, h('label', { class: 'f' }, 'Modelos deste provedor'),
         p.models.map((m, i) => h('div', { class: 'row llm-model' },
           h('input', { type: 'text', class: 'grow', value: m.id, placeholder: 'nome do modelo (ex.: gpt-5-mini)', 'aria-label': 'Nome do modelo', oninput: (e) => { const was = m.id; m.id = e.target.value.trim(); if (w.active.provider === p.id && w.active.model === was) w.active.model = m.id; } }),
-          h('label', { class: 'switch', title: 'O ClefFlow manda as imagens do passo junto: o redator descreve pelo que vê, e não só pelo texto' },
+          h('label', { class: 'switch', title: 'O PickFlow manda as imagens do passo junto: o redator descreve pelo que vê, e não só pelo texto' },
             h('input', { type: 'checkbox', checked: !!m.vision, onchange: (e) => { m.vision = e.target.checked; } }), h('span', { class: 'track' }), h('span', null, 'enxerga imagens')),
           h('button', { class: 'ghost sm', type: 'button', 'aria-label': 'Tirar este modelo', onclick: () => { p.models.splice(i, 1); fixActive(); draw(); } }, 'Tirar'))),
         h('button', { class: 'ghost sm', type: 'button', onclick: () => { p.models.push({ id: '', vision: false }); draw(); } }, '+ Adicionar modelo')),
@@ -2064,7 +2183,7 @@ function llmCard(s) {
       field('O que o redator faz', h('select', { onchange: (e) => { w.mode = e.target.value; } },
         h('option', { value: 'refine', selected: (w.mode || 'refine') === 'refine' }, 'Ajusta o prompt montado ao pedido (recomendado)'),
         h('option', { value: 'translate', selected: w.mode === 'translate' }, 'Só traduz o pedido para inglês')),
-        'Ajustar: recebe o prompt com as instruções das LoRAs e o pedido, e devolve o prompt final. Se o redator falhar, o ClefFlow segue com o prompt montado e avisa o motivo na conversa.'),
+        'Ajustar: recebe o prompt com as instruções das LoRAs e o pedido, e devolve o prompt final. Se o redator falhar, o PickFlow segue com o prompt montado e avisa o motivo na conversa.'),
       h('details', null, h('summary', { class: 'sm' }, 'Instruções do redator'),
         field('Instrução ao traduzir', h('textarea', { rows: 3, value: w.system || '', oninput: (e) => { w.system = e.target.value; } })),
         field('Instrução ao ajustar', h('textarea', { rows: 4, value: w.refine_system || '', oninput: (e) => { w.refine_system = e.target.value; } }))));
@@ -2130,7 +2249,7 @@ function mountSettings(main) {
     h('option', { value: v, selected: ((s.ui || {}).language || 'en') === v, translate: 'no' }, t)));
   page.append(h('div', { class: 'inner' },
     h('div', { class: 'card stack' }, h('h2', null, 'Idioma'),
-      field('Idioma da interface', langSel, 'Vale para a interface e para as mensagens do ClefFlow. As descrições e instruções que o Clef lê continuam como estão.')),
+      field('Idioma da interface', langSel, 'Vale para a interface e para as mensagens do PickFlow. As descrições e instruções que o Clef lê continuam como estão.')),
     h('div', { class: 'card stack' }, h('h2', null, 'ComfyUI'),
       field('Endereço', h('div', { class: 'row' }, h('div', { class: 'grow' }, comfyInput), h('button', { class: 'btn secondary', onclick: (e) => testComfy(e) }, 'Testar')), 'Desktop costuma usar a porta 8000; a versão portátil, 8188.'),
       comfyMsg,
@@ -2139,7 +2258,7 @@ function mountSettings(main) {
       switchEl('Liberar a VRAM do ComfyUI antes de o Clef decidir', s.comfyui.free_vram_before_clef, (v) => { s.comfyui.free_vram_before_clef = v; }),
       switchEl('Liberar a VRAM ao terminar cada execução', s.comfyui.free_vram_after_run, (v) => { s.comfyui.free_vram_after_run = v; })),
     h('div', { class: 'card stack' }, h('h2', null, 'Nós, LoRAs e modelos'),
-      h('p', { class: 'sub' }, 'Confere o que os workflows precisam dentro do ComfyUI (nós do ClefFlow, LoRAs, modelos) e instala o que você marcar. Também mostra como instalar o ComfyUI, se ainda não tiver.'),
+      h('p', { class: 'sub' }, 'Confere o que os workflows precisam dentro do ComfyUI (nós do PickFlow, LoRAs, modelos) e instala o que você marcar. Também mostra como instalar o ComfyUI, se ainda não tiver.'),
       h('div', null, h('button', { class: 'btn secondary', onclick: () => setupModal() }, 'Abrir o assistente'))),
     h('div', { class: 'card stack' }, h('h2', null, 'Clef'),
       field('Modo', mode),
@@ -2179,9 +2298,9 @@ function mountSettings(main) {
       h('div', null, dbtn), docBox)));
 }
 
-// ------------------------------------------------------- addons: window.ClefFlow
+// ------------------------------------------------------- addons: window.PickFlow
 // A API que os addons (addons/<nome>/web/*.js) usam para mexer na interface. Documentada em addons/README.md.
-const ClefFlow = {
+const PickFlow = {
   version: 1,
   h, api, toast, openModal, boxEditor, uniqueId, slug, tr,
   /** Idioma da interface: 'en' ou 'pt'. Textos do addon em português que estão em web/locales/en.json saem traduzidos. */
@@ -2190,25 +2309,25 @@ const ClefFlow = {
   get state() { return { view: S.view, conversation: S.conv, tray: S.tray.slice(), settings: S.settings, workflows: S.workflows, running: !!S.live }; },
   /** Eventos: 'ready', 'view' {view}, 'run:event' (cada evento da execução), 'run:end' {runId, images}. */
   on(event, fn) { if (!AX.listeners.has(event)) AX.listeners.set(event, new Set()); AX.listeners.get(event).add(fn); return () => AX.listeners.get(event).delete(fn); },
-  /** Tela nova no menu da esquerda: { id, title, mount(container, ClefFlow) }. */
+  /** Tela nova no menu da esquerda: { id, title, mount(container, PickFlow) }. */
   addView({ id, title, mount }) {
     if (!/^[a-z0-9_-]+$/.test(id || '') || VIEWS[id]) throw new Error(`Tela "${id}" inválida ou já existe.`);
-    VIEWS[id] = (main) => { main.append(h('div', { class: 'page-head' }, h('h1', null, title))); const page = h('div', { class: 'page' }, h('div', { class: 'inner' })); main.append(page); return mount(page.firstChild, ClefFlow); };
+    VIEWS[id] = (main) => { main.append(h('div', { class: 'page-head' }, h('h1', null, title))); const page = h('div', { class: 'page' }, h('div', { class: 'inner' })); main.append(page); return mount(page.firstChild, PickFlow); };
     $('#nav').append(h('button', { 'data-view': id, class: 'addon-nav' }, title));
   },
-  /** Botão ao lado de "Anexar imagem": { label, title, onClick(ClefFlow) }. */
+  /** Botão ao lado de "Anexar imagem": { label, title, onClick(PickFlow) }. */
   addButton({ label, title, onClick, where = 'composer' }) {
     const b = { label, title, onClick, where }; AX.buttons.push(b);
     if (S.C && S.C.composer) { const bar = S.C.composer.querySelector('.addon-bar'); if (bar) bar.append(addonButtonEl(b)); }
   },
-  /** Botão em cada imagem de resultado: { label, title, onClick(image, ClefFlow) }; image = {id, url, name}. */
+  /** Botão em cada imagem de resultado: { label, title, onClick(image, PickFlow) }; image = {id, url, name}. */
   addResultAction({ label, title, onClick }) { AX.resultActions.push({ label, title, onClick }); },
-  /** Bloco dentro de Ajustes > Addons: { id, title, mount(container, ClefFlow) }. */
+  /** Bloco dentro de Ajustes > Addons: { id, title, mount(container, PickFlow) }. */
   addSettings({ id, title, mount }) { AX.settings.push({ id, title, mount }); },
   /** Tela de entrada própria: o Python pede com `await call.ask("meu_tipo", ...)` e esta função devolve a resposta.
-   *  fn(evento, ClefFlow) -> Promise<valor>; devolver null cancela a execução. */
+   *  fn(evento, PickFlow) -> Promise<valor>; devolver null cancela a execução. */
   registerInput(kind, fn) { AX.inputs.set(kind, fn); },
-  /** Chama as rotas do próprio addon: ClefFlow.addonApi('meu_addon', '/rota', { method, body }). */
+  /** Chama as rotas do próprio addon: PickFlow.addonApi('meu_addon', '/rota', { method, body }). */
   addonApi(name, path, opts) { return api(`/api/addons/${name}${path.startsWith('/') ? path : '/' + path}`, opts); },
   /** Janela simples: { title, body (Node ou texto), buttons: [{ label, value, primary }] } -> Promise<value|null>. */
   modal({ title, body, buttons }) {
@@ -2229,7 +2348,8 @@ const ClefFlow = {
   config(name) { return clone(((S.settings.addons || {}).config || {})[name] || {}); },
   async saveConfig(name, cfg) { S.settings = await api('/api/settings', { method: 'PUT', body: { addons: { config: { [name]: cfg } } } }); return this.config(name); },
 };
-window.ClefFlow = ClefFlow;
+window.PickFlow = PickFlow;
+window.ClefFlow = PickFlow;                             // nome antigo: addons escritos antes do rename continuam funcionando
 
 async function loadAddons() {
   let info = { addons: [] };
@@ -2255,7 +2375,7 @@ function addonsCard() {
     let info;
     try { info = await api('/api/addons'); } catch (e) { box.replaceChildren(h('p', { class: 'msg err' }, e.message)); return; }
     box.replaceChildren(h('div', { class: 'stack' },
-      h('p', { class: 'sub' }, 'Extensões suas, na pasta ', h('code', null, 'addons/'), ' (o git não publica). Um addon pode trazer workflows, prompts, ganchos em Python, ações novas e telas. Ligar, desligar ou criar vale depois de reiniciar o ClefFlow.'),
+      h('p', { class: 'sub' }, 'Extensões suas, na pasta ', h('code', null, 'addons/'), ' (o git não publica). Um addon pode trazer workflows, prompts, ganchos em Python, ações novas e telas. Ligar, desligar ou criar vale depois de reiniciar o PickFlow.'),
       info.addons.length ? info.addons.map((a) => h('div', { class: 'addon-row' },
         h('div', { class: 'grow' },
           h('b', null, a.title), a.version ? h('span', { class: 'muted sm' }, ' v' + a.version) : null,
@@ -2263,13 +2383,13 @@ function addonsCard() {
           h('div', { class: 'muted sm' }, [a.resources.length ? tr('recursos:') + ' ' + a.resources.join(', ') : '', a.hooks.length ? tr('ganchos:') + ' ' + a.hooks.join(', ') : '', a.actions.length ? tr('ações:') + ' ' + a.actions.join(', ') : '', a.scripts.length ? tr('tela própria') : ''].filter(Boolean).join(' · ') || 'sem nada ainda'),
           a.error ? h('div', { class: 'msg err' }, a.error) : null),
         switchEl(a.enabled ? 'Ligado' : 'Desligado', a.enabled, async (v) => {
-          try { await api(`/api/addons/${a.name}`, { method: 'PUT', body: { enabled: v } }); toast('Reinicie o ClefFlow para valer'); render(); } catch (e) { toast(e.message); }
+          try { await api(`/api/addons/${a.name}`, { method: 'PUT', body: { enabled: v } }); toast('Reinicie o PickFlow para valer'); render(); } catch (e) { toast(e.message); }
         }))) : h('p', { class: 'muted sm' }, 'Nenhum addon ainda.'),
       h('div', { class: 'row' }, h('div', { class: 'grow' }, nameIn), h('button', { class: 'btn secondary', onclick: async () => {
-        try { const r = await api('/api/addons', { method: 'POST', body: { name: nameIn.value.trim() } }); toast('Criado em ' + r.path + '. Reinicie o ClefFlow.'); nameIn.value = ''; render(); } catch (e) { toast(e.message); }
+        try { const r = await api('/api/addons', { method: 'POST', body: { name: nameIn.value.trim() } }); toast('Criado em ' + r.path + '. Reinicie o PickFlow.'); nameIn.value = ''; render(); } catch (e) { toast(e.message); }
       } }, 'Criar addon a partir do modelo')),
-      h('div', { class: 'hint' }, 'Para o agente (Claude Code) criar um por você, use a skill clefflow-addons.'),
-      AX.settings.map((x) => { const c = h('div', { class: 'stack' }); try { x.mount(c, ClefFlow); } catch (e) { c.append(String(e.message || e)); } return h('div', { class: 'addon-set' }, h('h3', null, x.title), c); })));
+      h('div', { class: 'hint' }, 'Para o agente (Claude Code) criar um por você, use a skill pickflow-addons.'),
+      AX.settings.map((x) => { const c = h('div', { class: 'stack' }); try { x.mount(c, PickFlow); } catch (e) { c.append(String(e.message || e)); } return h('div', { class: 'addon-set' }, h('h3', null, x.title), c); })));
   };
   render();
   return h('div', { class: 'card stack' }, h('h2', null, 'Addons'), box);

@@ -18,6 +18,6 @@ drop:
 - "459:473"
 - "459:475"
 note: Workflow oficial do ComfyUI (Qwen-Image 2.1, texto para imagem, 25 passos). O reescritor de prompt embutido (nós 471, 473 e 475) é
-  descartado para não exigir o modelo de texto extra; o ClefFlow já escreve o prompt. O tamanho vem do nó ResolutionSelector salvo no workflow.
+  descartado para não exigir o modelo de texto extra; o PickFlow já escreve o prompt. O tamanho vem do nó ResolutionSelector salvo no workflow.
 outputs:
 - 461

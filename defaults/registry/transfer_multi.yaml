@@ -1,5 +1,5 @@
 # Ligação técnica do workflow 'transfer_multi' (nós do ComfyUI): levar VÁRIOS objetos para uma imagem.
-# As caixas não são nós do ComfyUI: o ClefFlow desenha na imagem antes de enviar (caixas verdes numeradas no destino,
+# As caixas não são nós do ComfyUI: o PickFlow desenha na imagem antes de enviar (caixas verdes numeradas no destino,
 # uma caixa vermelha em cada imagem de objeto). Na tela, você diz para cada caixa verde qual imagem enviada vai nela.
 # Cada modo é um arquivo; o Clef escolhe o modo.
 

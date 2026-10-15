@@ -1,7 +1,7 @@
 """Hugging Face: ler o arquivo .env, entender links e achar os .safetensors de um repositório.
 
 O token (HF_TOKEN) só é preciso para repositórios restritos ou que exigem aceitar uma licença. Ele fica no arquivo
-`.env` da pasta do ClefFlow (que o git ignora) e só é enviado ao próprio Hugging Face.
+`.env` da pasta do PickFlow (que o git ignora) e só é enviado ao próprio Hugging Face.
 """
 from __future__ import annotations
 
@@ -16,7 +16,7 @@ HOSTS = ("huggingface.co", "www.huggingface.co", "hf.co")
 API = "https://huggingface.co/api/models"
 NEED_TOKEN = ("O Hugging Face recusou o acesso: o arquivo é restrito ou exige aceitar a licença. Crie um token em "
               "https://huggingface.co/settings/tokens (permissão de leitura), aceite a licença na página do modelo, "
-              "acrescente a linha HF_TOKEN=seu_token ao arquivo .env na pasta do ClefFlow e reinicie o ClefFlow.")
+              "acrescente a linha HF_TOKEN=seu_token ao arquivo .env na pasta do PickFlow e reinicie o PickFlow.")
 BAD_TOKEN = ("O Hugging Face recusou o acesso mesmo com o HF_TOKEN do arquivo .env. Confira se o token está certo e "
              "se você aceitou a licença na página do modelo.")
 

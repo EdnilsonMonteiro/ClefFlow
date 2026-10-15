@@ -1,5 +1,5 @@
-# Biblioteca de LoRAs do ClefFlow. Cada LoRA tem uma descrição que o Clef lê para decidir se a liga.
-#   file         nome do arquivo em models/loras do ComfyUI (o ClefFlow aceita o arquivo em subpasta)
+# Biblioteca de LoRAs do PickFlow. Cada LoRA tem uma descrição que o Clef lê para decidir se a liga.
+#   file         nome do arquivo em models/loras do ComfyUI (o PickFlow aceita o arquivo em subpasta)
 #   strength     força padrão (0 desliga)
 #   description  quando usar: é o que o Clef lê. Escreva como se explicasse a uma pessoa
 #   auto         true = o Clef pode ligar a LoRA sozinho conforme o pedido
@@ -132,7 +132,7 @@ loras:
   adjust:
     consistency: 0
   description: Orbits the camera around an object or person (works best with objects) by 45, 90, 135 or 180 degrees, to 
-    the left or right, at a low, normal or high height. ClefFlow reads the angle from the request; if it does not say, 
+    the left or right, at a low, normal or high height. PickFlow reads the angle from the request; if it does not say, 
     it opens a screen for the user to choose. It is used by the "Girar o ponto de vista" prompt.
 - id: restore
   title: Restaurar foto
@@ -165,7 +165,7 @@ loras:
   catalog: outpaint
   auto: true
   description: 'Fills solid GRAY areas of the image with the natural continuation of the scene, without touching the rest.
-    Used to EXPAND the photo to the sides, up or down (ClefFlow first enlarges the canvas with gray) and to fill the gray
+    Used to EXPAND the photo to the sides, up or down (PickFlow first enlarges the canvas with gray) and to fill the gray
     holes of a 3D render. Use when the request is to enlarge, expand, open the framing, show more of the scene beyond the
     edges or fill the gray parts. It is used by the "Expandir ou completar áreas cinza" prompt.'
   prompt: 'Outpaint the image: replace the solid gray areas with a seamless continuation of the scene, keeping the existing

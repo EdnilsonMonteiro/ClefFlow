@@ -8,7 +8,7 @@ modes:
   turbo:
     title: Rápido
     when: 'Fast, 6 steps. It is the default: use it whenever the user does not ask for more quality.'
-    file: ClefFlow Editar - Turbo.json
+    file: PickFlow Editar - Turbo.json
     prompt:
       node: 6
       widget: value
@@ -63,5 +63,5 @@ modes:
     outputs:
     - 461
     note: Workflow oficial do ComfyUI (Qwen-Image 2.1, texto para imagem, 25 passos). O reescritor de prompt embutido 
-      (nós 471, 473 e 475) é descartado para não exigir o modelo de texto extra; o ClefFlow já escreve o prompt. O 
+      (nós 471, 473 e 475) é descartado para não exigir o modelo de texto extra; o PickFlow já escreve o prompt. O 
       tamanho vem do nó ResolutionSelector salvo no workflow.

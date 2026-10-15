@@ -15,17 +15,17 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import uvicorn  # noqa: E402
 
-from clefflow.app import create_app  # noqa: E402
-from clefflow.store import Store  # noqa: E402
+from pickflow.app import create_app  # noqa: E402
+from pickflow.store import Store  # noqa: E402
 from fake_comfy import FakeComfy, load_object_info  # noqa: E402
 
 if __name__ == "__main__":
-    tmp = Path(tempfile.mkdtemp(prefix="clefflow_demo_"))
+    tmp = Path(tempfile.mkdtemp(prefix="pickflow_demo_"))
     for d in ("defaults", "web"):
         shutil.copytree(ROOT / d, tmp / d)
     (tmp / "data").mkdir()
     if os.environ.get("DEMO_ADDON"):               # um addon criado a partir do modelo, para ver a interface dos addons
-        from clefflow.addons import new_addon
+        from pickflow.addons import new_addon
         new_addon(tmp / "addons", "meu-addon", ROOT / "defaults" / "addon_template")
     import os
     if os.environ.get("DEMO_SEED_CUSTOM"):        # um workflow "seu" ainda não registrado, para ver o importador

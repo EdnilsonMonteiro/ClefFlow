@@ -5,14 +5,14 @@ import pytest
 import yaml
 from fastapi.testclient import TestClient
 
-from clefflow import importer
-from clefflow.app import create_app
-from clefflow.store import Store, StoreError
+from pickflow import importer
+from pickflow.app import create_app
+from pickflow.store import Store, StoreError
 
 
 def test_defaults_only_install_works_and_custom_starts_empty(project):
     s = Store(project)
-    assert len(s.manifests()) == 13 and all(m["source"] == "default" for m in s.manifests().values())
+    assert len(s.manifests()) == 15 and all(m["source"] == "default" for m in s.manifests().values())
     assert s.settings()["comfyui"]["url"].startswith("http://")
     assert not (project / "custom").exists() or not any((project / "custom").rglob("*.yaml"))
 
@@ -37,7 +37,7 @@ def test_modes_pick_their_own_file_and_outputs(project):
     assert m["mode"] == "turbo" and m["file"].endswith("Turbo.json") and [v[0] for v in s.variants("edit")] == ["turbo", "quality"]
     q = s.manifest("edit", "quality")
     assert q["file"].endswith("Qualidade.json") and "cfg" in q["knobs"] and "cfg" not in m["knobs"]
-    assert s.workflow_path("edit", "quality").name == "ClefFlow Editar - Qualidade.json"
+    assert s.workflow_path("edit", "quality").name == "PickFlow Editar - Qualidade.json"
     with pytest.raises(StoreError):
         s.manifest("edit", "nao_existe")
     # o modo padrão não vaza para os outros (o t2i do modo quality não tem a cadeia de LoRAs do turbo)
@@ -90,7 +90,7 @@ def test_new_defaults_reach_users_who_only_edited_other_workflows(project):
 
 def test_recipe_with_disabled_workflow_is_hidden(project):
     s = Store(project)
-    assert [r["id"] for r in s.enabled_recipes()] == ["trocar_pessoa_e_fundo", "colar_e_fundir", "colar_sem_fundir", "pessoa_angulo", "pessoa_angulo_troca"]
+    assert [r["id"] for r in s.enabled_recipes()] == ["trocar_pessoa_e_fundo", "colar_e_fundir", "colar_sem_fundir", "pessoa_angulo", "pessoa_angulo_troca", "mudar_pose"]
     cfg = s.clef_config()
     cfg["workflows"]["transfer_object"]["enabled"] = False
     s.save_clef_config(cfg)
@@ -112,8 +112,8 @@ def _copy_default_to_custom(project, name, dest=None):
 
 
 def test_importer_finds_unregistered_files_and_builds_a_working_draft(api, project):
-    _copy_default_to_custom(project, "ClefFlow Editar - Qualidade.json", "Meu Edit.json")
-    _copy_default_to_custom(project, "ClefFlow Editar - Qualidade.json", "NSFW/Outro.json")
+    _copy_default_to_custom(project, "PickFlow Editar - Qualidade.json", "Meu Edit.json")
+    _copy_default_to_custom(project, "PickFlow Editar - Qualidade.json", "NSFW/Outro.json")
     listing = api.get("/api/importable").json()
     assert {x["file"] for x in listing} == {"Meu Edit.json", "NSFW/Outro.json"}
     assert [x["nsfw"] for x in listing if x["file"].startswith("NSFW")] == [True]
@@ -134,7 +134,7 @@ def test_importer_finds_unregistered_files_and_builds_a_working_draft(api, proje
 
 
 def test_import_rejects_bad_input(api, project):
-    _copy_default_to_custom(project, "ClefFlow Editar - Qualidade.json", "x.json")
+    _copy_default_to_custom(project, "PickFlow Editar - Qualidade.json", "x.json")
     ok = {"file": "x.json", "id": "x1", "outputs": [25]}
     assert api.post("/api/import", json={**ok, "id": "Inválido"}).status_code == 422
     assert api.post("/api/import", json={**ok, "id": "edit"}).status_code == 422       # já existe

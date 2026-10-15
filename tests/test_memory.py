@@ -1,4 +1,4 @@
-from clefflow.memory import GB, Memory, add_clef, from_stats, should_free_comfy, should_unload
+from pickflow.memory import GB, Memory, add_clef, from_stats, should_free_comfy, should_unload
 
 
 def mem(total=24, clef=19.0, ram_free=20, loaded=True, device="cuda", ram_gb=0):

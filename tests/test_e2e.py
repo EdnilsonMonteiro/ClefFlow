@@ -7,7 +7,7 @@ import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 
-from clefflow.app import create_app
+from pickflow.app import create_app
 
 
 def png(color=(10, 120, 200), size=(80, 60), alpha=False):
@@ -18,7 +18,7 @@ def png(color=(10, 120, 200), size=(80, 60), alpha=False):
 
 @pytest.fixture()
 def api(project, comfy):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(project).save_settings({"comfyui": {"url": comfy.url}, "clef": {"mode": "mock"}})
     app = create_app(project)
     with TestClient(app, base_url="http://127.0.0.1:7860") as c:
@@ -57,7 +57,7 @@ def types(c, rid):
 
 def test_status_and_workflow_listing(api):
     s = api.get("/api/status").json()
-    assert s["comfy"]["ok"] and s["clef"]["mode"] == "mock" and s["workflows"] == 13
+    assert s["comfy"]["ok"] and s["clef"]["mode"] == "mock" and s["workflows"] == 15
     wfs = {w["id"]: w for w in api.get("/api/workflows").json()}
     assert wfs["edit"]["required_images"] == 1 and len(wfs["edit"]["presets"]) == 9
     assert [m["id"] for m in wfs["edit"]["modes"]] == ["turbo", "quality"] and wfs["t2i"]["modes"][0]["id"] == "turbo"
@@ -73,7 +73,7 @@ def test_simple_edit_end_to_end(api):
     # o que foi para o ComfyUI
     (prompt,) = api.fake.prompts.values()
     assert prompt["6"]["inputs"]["value"] == "troque a cor da camisa para vermelho"
-    assert prompt["26"]["inputs"]["image"].startswith("clefflow/up_")
+    assert prompt["26"]["inputs"]["image"].startswith("pickflow/up_")
     assert not {"27", "50", "52"} & set(prompt) and "25" in prompt
     assert prompt["20"]["inputs"]["noise_seed"] != 1055939264985049        # seed randomizada
     # edição simples: sem escaladores (ajustes em "off") e a cadeia de realismo do modo turbo
@@ -173,8 +173,8 @@ def test_quality_mode_uses_its_own_graph_and_sampler_settings(api):
 
 def test_clef_added_lora_brings_its_prompt_and_settings(api, monkeypatch):
     """Prompt 'livre' + LoRA que o Clef ligou por conta própria: as instruções da LoRA vão antes do pedido."""
-    from clefflow import runner
-    from clefflow.clef import Answer, MockClef
+    from pickflow import runner
+    from pickflow.clef import Answer, MockClef
 
     class WantsHead(MockClef):
         async def decide(self, state, questions, images=None):
@@ -217,8 +217,8 @@ def test_missing_lora_files(api, project):
 
 
 def test_llm_writer_refines_the_assembled_prompt(api, project, monkeypatch):
-    from clefflow import runner
-    from clefflow.store import Store
+    from pickflow import runner
+    from pickflow.store import Store
     seen = {}
 
     async def fake_refine(draft, request, loras, cfg, images=None, note="", notify=None):
@@ -269,7 +269,7 @@ def test_empty_box_is_rejected(api):
 def test_mask_workflow_becomes_alpha_cutout(api, project):
     """Workflow seu (em custom/) com entrada de máscara: o desenho vira o canal alfa da imagem enviada."""
     import yaml
-    from clefflow.store import Store
+    from pickflow.store import Store
     store = Store(project)
     m = yaml.safe_load((project / "defaults" / "registry" / "edit.yaml").read_text(encoding="utf-8"))
     m.update(id="com_mascara", title="Com máscara")
@@ -305,7 +305,7 @@ def test_subgraph_workflows_run_end_to_end(api):
     wait_event(api, rid, lambda e: e["type"] == "done")
     p2 = list(api.fake.prompts.values())[1]
     assert p2["459:474"]["inputs"]["prompt"] == "Remove the background, and output a PNG image"
-    assert p2["470"]["inputs"]["image"].startswith("clefflow/up_") and "472" not in p2
+    assert p2["470"]["inputs"]["image"].startswith("pickflow/up_") and "472" not in p2
     assert p2["459:458"]["inputs"]["seed"] != 992618384254740 and seed1 != 0           # semente sorteada (registro: set random)
 
 
@@ -325,7 +325,7 @@ def test_recipe_chains_two_workflows_and_feeds_previous_result(api):
 
 
 def test_ambiguous_route_asks_user(api, project):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(project).save_settings({"clef": {"ask_below": 0.999}})
     a, b = upload(api), upload(api)
     _, rid = start(api, "algo vago", [a["id"], b["id"]])
@@ -359,7 +359,7 @@ def test_comfy_validation_error_is_readable(api):
 
 
 def test_clef_down_gives_actionable_error(api, project):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(project).save_settings({"clef": {"mode": "systemone", "url": "http://127.0.0.1:9"}})
     a, b = upload(api), upload(api)
     _, rid = start(api, "x", [a["id"], b["id"]])
@@ -390,7 +390,7 @@ def test_cancel_unblocks_waiting_run(api):
 
 
 def test_free_vram_hooks(api, project):
-    from clefflow.store import Store
+    from pickflow.store import Store
     Store(project).save_settings({"comfyui": {"free_vram_before_clef": True, "free_vram_after_run": True}})
     a = upload(api)
     _, rid = start(api, "x", [a["id"]], route="edit")
@@ -433,14 +433,14 @@ def test_recipes_roundtrip_and_validation(api):
                                       "inputs": {"image_1": "user:1"}}]})
     assert api.put("/api/clef-config", json={"recipes": cfg["recipes"], "instructions": "novas instruções"}).status_code == 200
     back = api.get("/api/clef-config").json()["recipes"]
-    assert len(back) == 6 and back[-1]["steps"][0]["mode"] == "quality" and back[-1]["steps"][0]["loras"] == ["bfs_head"]
+    assert len(back) == 7 and back[-1]["steps"][0]["mode"] == "quality" and back[-1]["steps"][0]["loras"] == ["bfs_head"]
     bad = api.put("/api/clef-config", json={"recipes": [{"id": "x", "steps": [{"workflow": "nao_existe"}]}]})
     assert bad.status_code == 422
 
 
 def test_doctor_endpoint_reports_all_ok(api):
     r = api.post("/api/doctor").json()
-    assert len(r) == 20 and all(x["ok"] for x in r)
+    assert len(r) == 22 and all(x["ok"] for x in r)
 
 
 def test_upload_rejects_non_image(api):
@@ -452,8 +452,8 @@ GB = 2 ** 30
 
 
 def _spy_clef(monkeypatch, health):
-    from clefflow import runner
-    from clefflow.clef import MockClef
+    from pickflow import runner
+    from pickflow.clef import MockClef
     calls = []
 
     class Spy(MockClef):
@@ -501,7 +501,7 @@ def test_clef_kept_when_memory_is_enough(api, monkeypatch):
 
 
 def test_policy_never_and_always(api, project, monkeypatch):
-    from clefflow.store import Store
+    from pickflow.store import Store
     health = {"loaded": True, "device": "cuda", "vram": {"allocated_gb": 19.0}}
     api.fake.stats = _stats(24, 3)
     Store(project).save_settings({"clef": {"unload_policy": "never"}})

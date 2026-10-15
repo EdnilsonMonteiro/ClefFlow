@@ -4,7 +4,7 @@
 # foto original). O cinza do render (o que o 3D não viu) é refeito a partir da original.
 
 id: anyangle
-file: ClefFlow 3D - AnyAngle (mudar camera).json
+file: PickFlow 3D - AnyAngle (mudar camera).json
 title: Mudar a câmera (AnyAngle)
 group: câmera
 internal: true

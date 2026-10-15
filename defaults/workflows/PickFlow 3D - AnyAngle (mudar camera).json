@@ -20,12 +20,12 @@
    "mode": 0,
    "inputs": [],
    "outputs": [],
-   "title": "ClefFlow: AnyAngle",
+   "title": "PickFlow: AnyAngle",
    "properties": {
     "Node name for S&R": "MarkdownNote"
    },
    "widgets_values": [
-    "## ClefFlow 3D - AnyAngle (mudar a camera)\n\nCopia do *Qwen2.1 AnyAngle Camera* sem a etapa de coarse automatico: o **Original** e o **Coarse** (render do Gaussian Splat no angulo que a pessoa escolheu no ClefFlow) entram direto.\n\nPrompt fixo: `Change the camera angle from <image1> to <image2>.` (image1 = original, image2 = coarse). Nos testes esta ordem segue o angulo do coarse; a do card do autor (render como image1) devolvia quase a foto original. LoRA AnyAngle 1.0, CFG 3, 25 passos."
+    "## PickFlow 3D - AnyAngle (mudar a camera)\n\nCopia do *Qwen2.1 AnyAngle Camera* sem a etapa de coarse automatico: o **Original** e o **Coarse** (render do Gaussian Splat no angulo que a pessoa escolheu no PickFlow) entram direto.\n\nPrompt fixo: `Change the camera angle from <image1> to <image2>.` (image1 = original, image2 = coarse). Nos testes esta ordem segue o angulo do coarse; a do card do autor (render como image1) devolvia quase a foto original. LoRA AnyAngle 1.0, CFG 3, 25 passos."
    ],
    "widgets_values_named": {
     "text": "## Qwen-Image-2.1 AnyAngle (mudar o angulo/pose da camera) -\n\nMuda o angulo de camera de uma imagem mantendo o estilo, usando o LoRA **QI_2.1_AnyAngle**.\n\n### Como funciona (2 etapas, no mesmo grafo)\n1. **Etapa COARSE (opcional, gerada no Comfy)**: a partir da **Image 1 (original)**, gera uma\n   imagem grosseira no ANGULO desejado (instrucao no node \"Angle prompt\").\n2. **Etapa FINAL (AnyAngle)**: recebe a **Image 1 (original)** + o **coarse** (imagem 2) e o prompt\n   fixo `Change the camera angle from <image2> to <image1>.` -> gera a imagem final limpia.\n\n### Controles\n- **Angle prompt**: descreva o novo angulo (ex.: \"three-quarter left, lower angle\", \"from behind\",\n  \"top-down\", \"slightly from the right\"). So mudar isso ja cria a pose/angulo.\n- **Usar coarse manual** (switch): LIGUE se voce ja tem um render/coarse de fora\n  (Blender + Gaussian Splat tipo Tripo Splat/Trellis2, ou uma foto do angulo desejado).\n  Nesse caso ligue a imagem em **Coarse manual (image2)** e desligue a etapa COARSE (Ctrl+B).\n  DESLIGADO = usa o coarse gerado automaticamente.\n\n### Config do autor do LoRA\n- LoRA **AnyAngle = 1.0** · **CFG 3.0** · **20+ passos** (aqui 25, euler/simple).\n- A etapa coarse usa o modelo puro (sem o LoRA), cfg 1, 25 passos.\n\n### Observacao\n- O ideal do autor e um coarse vindo de 3D/Gaussian Splat (mais fiel ao espaco). O coarse gerado\n  aqui pelo Qwen e uma aproximacao boa e pratica; poses com anatomia/rosto deformados podem sair\n  errados (como o proprio autor alerta).\n\n### Memoria (16 GB)\n- int8 + `--disable-fast-disk`. Dois passes (coarse + final) = mais tempo.\n"
@@ -981,10 +981,10 @@
     "Node name for S&R": "SaveImage"
    },
    "widgets_values": [
-    "clefflow/anyangle"
+    "pickflow/anyangle"
    ],
    "widgets_values_named": {
-    "filename_prefix": "clefflow/anyangle"
+    "filename_prefix": "pickflow/anyangle"
    }
   },
   {

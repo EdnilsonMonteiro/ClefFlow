@@ -95,7 +95,7 @@ async def score_pairs(store: Store, clef, ids: list[str] | None = None, max_pair
 
 
 MERGE_SYSTEM = """\
-Você funde casos de uso repetidos do ClefFlow (edição de imagens com workflows do ComfyUI) em UM caso de uso mais geral.
+Você funde casos de uso repetidos do PickFlow (edição de imagens com workflows do ComfyUI) em UM caso de uso mais geral.
 Você recebe 2 a 5 casos de uso. Entregue um único caso que atenda a TODOS os pedidos que os originais atendiam, sem
 atender o que eles não atendiam.
 

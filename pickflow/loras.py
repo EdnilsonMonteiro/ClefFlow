@@ -1,6 +1,6 @@
 """LoRAs como peças soltas: biblioteca (com descrição), pilha efetiva, ajustes do grafo e prompt.
 
-Um workflow "unificado" (ex.: `edit`) tem uma cadeia de LoRAs que o ClefFlow reconstrói a cada execução:
+Um workflow "unificado" (ex.: `edit`) tem uma cadeia de LoRAs que o PickFlow reconstrói a cada execução:
 
     pilha base do workflow  ->  LoRAs do prompt escolhido  ->  LoRAs que o Clef decidiu acrescentar
 

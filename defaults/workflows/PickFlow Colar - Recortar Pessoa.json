@@ -523,7 +523,7 @@
    "widgets_values_named": {
     "filename_prefix": "qwen21_blend/recorte_rmbg"
    },
-   "title": "Recorte do RMBG (o ClefFlow junta com o do SAM3)"
+   "title": "Recorte do RMBG (o PickFlow junta com o do SAM3)"
   }
  ],
  "links": [

@@ -8,7 +8,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 import pytest
 
-from clefflow import llm
+from pickflow import llm
 from test_e2e import api, png  # noqa: F401  (fixture)
 from test_verify import _fuse_prompt
 from test_splat import Stub
@@ -188,7 +188,7 @@ def _enable_writer(api, fake, vision=True, key="sk-teste"):
 
 
 def _completar(monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "completar"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "completar"}))
 
 
 def test_the_writer_refines_the_body_completion_prompt_and_sees_the_collage(api, fake, monkeypatch):
@@ -217,7 +217,7 @@ def test_a_model_that_does_not_see_images_gets_only_text(api, fake, monkeypatch)
 
 
 def test_the_plain_fusion_does_not_call_the_writer(api, fake, monkeypatch):
-    monkeypatch.setattr("clefflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "inteiro"}))
+    monkeypatch.setattr("pickflow.runner.make_clef", lambda s: Stub({"role_background": "user_1", "role_subject": "user_2", "var_corpo": "inteiro"}))
     _enable_writer(api, fake)
     text, _ = _fuse_prompt(api, "inteiro")
     assert text.startswith("pysj666 keep the subject position") and not fake.requests

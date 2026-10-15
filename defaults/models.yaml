@@ -1,4 +1,4 @@
-# Arquivos que os workflows do ClefFlow usam e que ficam no ComfyUI (pastas models/<folder>/).
+# Arquivos que os workflows do PickFlow usam e que ficam no ComfyUI (pastas models/<folder>/).
 # O assistente de primeiros passos (aba Ajustes) lê esta lista, mostra o que falta e só baixa o que você marcar.
 #
 # Cada autor tem a sua licença: várias são de uso não comercial. Confira a página antes de usar.
@@ -96,7 +96,7 @@ files:
   file: Qwen2.1_viewpoint_orbit.safetensors
   folder: loras
   why: Gira a câmera ao redor de um objeto ou pessoa. O arquivo do autor se chama orbit_alpha_lora_gate_up_split.safetensors;
-    o ClefFlow salva como Qwen2.1_viewpoint_orbit.safetensors.
+    o PickFlow salva como Qwen2.1_viewpoint_orbit.safetensors.
   license: Qwen Research (uso não comercial)
   page: https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-viewpoint-orbit-LoRA
   url: https://huggingface.co/ML-Intern-lab/Qwen-Image-2.1-viewpoint-orbit-LoRA/resolve/main/checkpoints/steps2000res768/orbit_alpha_lora_gate_up_split.safetensors
@@ -206,3 +206,13 @@ files:
   page: https://huggingface.co/Comfy-Org/BiRefNet
   url: https://huggingface.co/Comfy-Org/BiRefNet/resolve/main/background_removal/birefnet.safetensors
   size_gb: 0.44
+- id: qwen_union_controlnet
+  group: model
+  title: Qwen-Image 2.1 Fun ControlNet Union (pose)
+  file: Qwen-Image-2.1-Fun-Controlnet-Union-ComfyUI.safetensors
+  folder: controlnet
+  why: Faz as pessoas seguirem o mapa de pose no fluxo "Mudar a pose". Precisa também do pacote Qwen Image 2.1 Fun ControlNet Union (T8) no ComfyUI.
+  license: Qwen Research (uso não comercial)
+  page: https://huggingface.co/t8star/Qwen-Image-2.1-Fun-Controlnet-Union-Comfy
+  url: https://huggingface.co/t8star/Qwen-Image-2.1-Fun-Controlnet-Union-Comfy/resolve/main/Qwen-Image-2.1-Fun-Controlnet-Union-ComfyUI.safetensors
+  size_gb: 7.0

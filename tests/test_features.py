@@ -5,12 +5,12 @@ import asyncio
 import pytest
 from fastapi.testclient import TestClient
 
-from clefflow import hf, pvars
-from clefflow import loras as L
-from clefflow.app import create_app
-from clefflow.clef import Answer
-from clefflow.router import Ctx, ImageRef, Router, Source, Step
-from clefflow.store import Store
+from pickflow import hf, pvars
+from pickflow import loras as L
+from pickflow.app import create_app
+from pickflow.clef import Answer
+from pickflow.router import Ctx, ImageRef, Router, Source, Step
+from pickflow.store import Store
 from test_e2e import png, start, upload, wait_event
 
 
@@ -340,7 +340,7 @@ def test_route_names_are_short_and_mode_is_not_in_the_workflow_title(project):
 
 
 def test_the_wizard_recommends_only_the_final_consistency(project):
-    from clefflow.setup import catalog
+    from pickflow.setup import catalog
     files = {e["file"] for e in catalog(Store(project))}
     assert "qwen-image-2.1-consistency.safetensors" in files and "qwen-image-2.1-consistency-2000.safetensors" not in files
     assert "qwen-image-2.1-outfit-swap.safetensors" in files and "Qwen2.1_viewpoint_orbit.safetensors" in files

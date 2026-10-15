@@ -7,10 +7,10 @@ Um addon pode, juntos ou separados:
     `custom/` > `addons/` > `defaults/`;
   * trazer **código Python** em `addon.py`, com `register(ctx)`: ganchos que mexem no pedido e no prompt, rotas
     HTTP próprias, **ações** (fluxos feitos em Python, sem ComfyUI) e acesso ao **LLM** configurado em Ajustes;
-  * trazer **interface**: arquivos em `web/` (JS e CSS) carregados sozinhos, que usam `window.ClefFlow`
+  * trazer **interface**: arquivos em `web/` (JS e CSS) carregados sozinhos, que usam `window.PickFlow`
     (telas novas, botões, telas de entrada do usuário, eventos da execução).
 
-Veja `addons/README.md` e a skill `.claude/skills/clefflow-addons`.
+Veja `addons/README.md` e a skill `.claude/skills/pickflow-addons`.
 """
 from __future__ import annotations
 
@@ -107,7 +107,7 @@ class LLM:
 class ActionCall:
     """O que uma ação (fluxo em Python) recebe. `images` tem o PNG de cada entrada do fluxo, pelo nome da entrada;
     `drawings` o que o usuário desenhou (caixas, posições, máscara); `status(texto)` escreve na conversa;
-    `ask(tipo, **dados)` abre uma tela do addon (ClefFlow.registerInput) e devolve a resposta."""
+    `ask(tipo, **dados)` abre uma tela do addon (PickFlow.registerInput) e devolve a resposta."""
     request: str
     images: dict[str, bytes]
     drawings: dict[str, Any]
@@ -252,7 +252,7 @@ class AddonManager:
                 self._load_code(a)
 
     def _load_code(self, a: Addon) -> None:
-        mod_name = f"clefflow_addon_{re.sub(r'[^a-z0-9_]', '_', a.name)}"
+        mod_name = f"pickflow_addon_{re.sub(r'[^a-z0-9_]', '_', a.name)}"
         try:
             spec = importlib.util.spec_from_file_location(mod_name, a.path / "addon.py",
                                                           submodule_search_locations=[str(a.path)])
@@ -267,7 +267,7 @@ class AddonManager:
             a.ctx = ctx
             if self.app is not None and any(True for _ in ctx.router.routes):
                 self.app.include_router(ctx.router, prefix=f"/api/addons/{a.name}")
-        except Exception as e:  # noqa: BLE001 - um addon quebrado não derruba o ClefFlow
+        except Exception as e:  # noqa: BLE001 - um addon quebrado não derruba o PickFlow
             a.error = f"{type(e).__name__}: {e}"
             a.ctx = None
             print(f"[addon {a.name}] não carregou:\n{traceback.format_exc()}", file=sys.stderr)

@@ -1,11 +1,11 @@
-# Foto de um AMBIENTE -> Gaussian Splat (TripoSplat, foto inteira). O ClefFlow mostra o 3D no navegador; a pessoa gira
+# Foto de um AMBIENTE -> Gaussian Splat (TripoSplat, foto inteira). O PickFlow mostra o 3D no navegador; a pessoa gira
 # a câmera com o mouse, baixa o PNG do ângulo e escolhe se fica com o render ou se completa as partes cinza do render
 # (Editar com a LoRA de Outpaint).
 #   splat   o passo devolve um arquivo 3D (nó SaveGLB), não uma imagem: kind diz como mostrar; then é o workflow que
 #           gera a foto final a partir do render (o original entra junto)
 
 id: ambiente_3d
-file: ClefFlow 3D - Gerar Splat (TripoSplat).json
+file: PickFlow 3D - Gerar Splat (TripoSplat).json
 title: Ambiente em 3D (mudar o ângulo)
 group: câmera
 images:
